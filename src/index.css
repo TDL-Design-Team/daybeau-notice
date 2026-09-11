@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* ---- Notice generator fonts (Pretendard + Broshock) ---- */
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 100;
+  font-display: swap;
+  src: url("./assets/fonts/Pretendard-Thin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Pretendard-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/Pretendard-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/Pretendard-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/Pretendard-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 900;
+  font-display: swap;
+  src: url("./assets/fonts/Pretendard-Black.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Broshock";
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Broshock-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "BroshockBody";
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/BroshockBody-Regular.woff2") format("woff2");
+}
+
+body {
+  margin: 0;
+  font-family: Pretendard, Arial, Helvetica, sans-serif;
+}
