@@ -30,9 +30,10 @@ export type NoticeState = {
   branch: string;
   year: number;
   month: number; // 1-12
-  dayStatus: Record<string, DayStatus>; // iso -> status (달력 선택)
+  includedWeeks: number[]; // 이미지에 표시할 주차 인덱스 (0-base)
+  dayStatus: Record<string, DayStatus>; // iso -> status
   statusConfig: Record<DayStatus, StatusConfig>; // 하단 문구 상태별 설정
-  extraText: string; // 기타 문구
+  extraText: string;
 };
 
 export function defaultStatusConfig(): Record<DayStatus, StatusConfig> {

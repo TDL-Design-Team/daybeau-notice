@@ -5,10 +5,12 @@ import bgMo from "@/assets/notice/bg-mo.png";
 import bgPc from "@/assets/notice/bg-pc.png";
 import {
   DayCell,
+  KO_WD,
   MONTH_ENG,
-  buildStrip,
+  WeekRow,
   formatDateList,
-  formatTimeAmPm,
+  formatTimeRange,
+  weeksOfMonth,
 } from "@/lib/notice/calendar";
 import {
   DayStatus,
@@ -105,7 +107,7 @@ function runsInRow(row: DayCell[], dayStatus: Record<string, DayStatus>): Run[] 
   const runs: Run[] = [];
   let cur: Run | null = null;
   row.forEach((cell, i) => {
-    const st = dayStatus[cell.iso];
+    const st = cell.inMonth ? dayStatus[cell.iso] : undefined;
     if (st) {
       if (cur && cur.status === st && cur.end === i - 1) cur.end = i;
       else {
@@ -128,14 +130,22 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
   const spec = SPECS[variant];
   const px = (f: number) => f * H;
 
-  const selected = Object.keys(state.dayStatus).filter((iso) => iso.startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`));
-  const rows = buildStrip(selected);
-  const hideLabels = rows.length >= 3; // 3줄 이상이면 라벨 숨기고 색표기만 (slide 4)
+  const allWeeks = weeksOfMonth(state.year, state.month);
+  const rows: WeekRow[] = allWeeks.filter((_, i) => state.includedWeeks.includes(i));
+  const hideLabels = rows.length >= 3; // 3주 이상이면 라벨 숨기고 색표기만
 
   const cellW = (spec.cal.w * W) / 7;
-  const circleD = spec.cal.circle * W;
-  const dateRowH = circleD * 1.05;
   const labelH = px(spec.cal.labelFont) * (variant === "mo" ? 2.6 : 1.9);
+  const rowGap = px(spec.cal.rowGap);
+  // 달력이 하단 박스를 침범하지 않도록, 주차 수에 맞춰 행 높이/원 크기 자동 축소
+  const calBudget = (spec.bottom.t - spec.cal.t) * H - px(spec.cal.wdFont) * 1.6 - px(0.02);
+  const perRowExtra = (hideLabels ? 0 : labelH) + rowGap;
+  const idealRowH = spec.cal.circle * W * 1.05;
+  const nRows = Math.max(1, rows.length);
+  const dateRowH = Math.min(idealRowH, Math.max(px(0.028), calBudget / nRows - perRowExtra));
+  const circleD = Math.min(spec.cal.circle * W, dateRowH * 0.92, cellW * 0.92);
+  const calScale = circleD / (spec.cal.circle * W); // 축소 비율
+  const dateFont = px(spec.cal.dateFont) * calScale;
 
   const root: CSSProperties = {
     position: "relative",
@@ -147,9 +157,6 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
     fontFamily: "Pretendard, sans-serif",
     color: DARK,
   };
-
-  // 헤더(요일)는 첫 행 기준
-  const headerCells = rows[0] ?? [];
 
   return (
     <div style={root}>
@@ -176,11 +183,11 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
 
       {/* 달력 strip */}
       <div style={{ position: "absolute", left: spec.cal.l * W, top: spec.cal.t * H, width: spec.cal.w * W }}>
-        {/* 요일 헤더 */}
+        {/* 요일 헤더 (일~토 고정) */}
         <div style={{ display: "flex", marginBottom: px(0.008) }}>
-          {headerCells.map((c, i) => (
+          {KO_WD.map((wd, i) => (
             <div key={i} style={{ width: cellW, textAlign: "center", fontSize: px(spec.cal.wdFont), fontWeight: 500, color: GRAY }}>
-              {c.weekdayKo}
+              {wd}
             </div>
           ))}
         </div>
@@ -202,10 +209,10 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
               })}
               {/* 날짜 숫자 */}
               {row.map((cell, ci) => {
-                const st = state.dayStatus[cell.iso];
-                const color = st ? STATUS_STYLE[st].text : GRAY;
+                const st = cell.inMonth ? state.dayStatus[cell.iso] : undefined;
+                const color = st ? STATUS_STYLE[st].text : cell.inMonth ? GRAY : "#DCDFE3";
                 return (
-                  <div key={ci} style={{ position: "absolute", left: ci * cellW, top: 0, width: cellW, height: dateRowH, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Optima, serif", fontWeight: 500, fontSize: px(spec.cal.dateFont), color }}>
+                  <div key={ci} style={{ position: "absolute", left: ci * cellW, top: 0, width: cellW, height: dateRowH, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Optima, serif", fontWeight: 500, fontSize: dateFont, color }}>
                     {cell.day}
                   </div>
                 );
@@ -270,7 +277,7 @@ function BottomBox({ spec, W, H, px, state }: { spec: VariantSpec["bottom"]; W: 
       {blocks.map((st) => {
         const dates = Object.keys(state.dayStatus).filter((iso) => state.dayStatus[iso] === st);
         const cfg = state.statusConfig[st];
-        const timeStr = st === "closed" ? "" : `${formatTimeAmPm(cfg.startTime)} - ${formatTimeAmPm(cfg.endTime)}`;
+        const timeStr = st === "closed" ? "" : formatTimeRange(cfg.startTime, cfg.endTime);
         return (
           <div key={st} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: px(0.005) }}>
             {statusPill(st, px(spec.pillFont))}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as htmlToImage from "html-to-image";
 import NoticePoster from "@/components/notice/NoticePoster";
 import { NOTICE_BRANCHES } from "@/lib/notice/branches";
-import { KO_WD, MONTH_ENG, formatDateList, toIso } from "@/lib/notice/calendar";
+import { KO_WD, MONTH_ENG, formatDateList, weeksOfMonth } from "@/lib/notice/calendar";
 import {
   DayStatus,
   NoticeState,
@@ -13,48 +13,50 @@ import {
   defaultStatusConfig,
 } from "@/lib/notice/types";
 
-const NEXT: Record<"none" | DayStatus, "none" | DayStatus> = {
-  none: "normal",
-  normal: "short",
-  short: "closed",
-  closed: "none",
+type PaintMode = DayStatus | "clear";
+const MODE_LABEL: Record<PaintMode, string> = {
+  normal: "정상 진료",
+  short: "단축 진료",
+  closed: "휴진",
+  clear: "지우기",
 };
-const CTRL_STYLE: Record<DayStatus, { bg: string; color: string; border: string }> = {
-  normal: { bg: "transparent", color: "#8E949B", border: "2px solid #8E949B" },
-  short: { bg: "transparent", color: "#E9531F", border: "2px solid #E9531F" },
-  closed: { bg: "#E9531F", color: "#fff", border: "2px solid #E9531F" },
+// 상태별 색 (정상=회색테두리, 단축=주황테두리, 휴진=주황채움+흰글자)
+const CTRL_STYLE: Record<DayStatus, React.CSSProperties> = {
+  normal: { background: "transparent", color: "#8E949B", border: "2px solid #8E949B" },
+  short: { background: "transparent", color: "#E9531F", border: "2px solid #E9531F" },
+  closed: { background: "#E9531F", color: "#fff", border: "2px solid #E9531F" },
 };
-
-// 컨트롤용 월 그리드 (일~토)
-function monthGrid(year: number, month: number): (string | null)[][] {
-  const first = new Date(year, month - 1, 1);
-  const startDow = first.getDay(); // 0=일
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const cells: (string | null)[] = [];
-  for (let i = 0; i < startDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(toIso(year, month, d));
-  while (cells.length % 7 !== 0) cells.push(null);
-  const rows: (string | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
-  return rows;
-}
 
 export default function App() {
   const now = new Date();
-  const [state, setState] = useState<NoticeState>({
-    branch: NOTICE_BRANCHES[0],
-    year: now.getFullYear(),
-    month: now.getMonth() + 1,
-    dayStatus: {},
-    statusConfig: defaultStatusConfig(),
-    extraText: "",
+  const [state, setState] = useState<NoticeState>(() => {
+    const w = weeksOfMonth(now.getFullYear(), now.getMonth() + 1);
+    return {
+      branch: NOTICE_BRANCHES[0],
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      includedWeeks: w.map((_, i) => i),
+      dayStatus: {},
+      statusConfig: defaultStatusConfig(),
+      extraText: "",
+    };
   });
+  const [mode, setMode] = useState<PaintMode>("closed");
   const [previewSize, setPreviewSize] = useState<OutputSize>("a4");
   const [exportSizes, setExportSizes] = useState<OutputSize[]>(["a4"]);
   const [exporting, setExporting] = useState(false);
   const posterRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const grid = useMemo(() => monthGrid(state.year, state.month), [state.year, state.month]);
+  const weeks = useMemo(() => weeksOfMonth(state.year, state.month), [state.year, state.month]);
+
+  // 표시 대상(포함 주차) 안의 날짜 집합
+  const includedIsos = useMemo(() => {
+    const s = new Set<string>();
+    weeks.forEach((wk, i) => {
+      if (state.includedWeeks.includes(i)) wk.forEach((c) => c.inMonth && s.add(c.iso));
+    });
+    return s;
+  }, [weeks, state.includedWeeks]);
 
   useEffect(() => {
     const h = (e: BeforeUnloadEvent) => {
@@ -76,17 +78,24 @@ export default function App() {
         m = 1;
         y++;
       }
-      return { ...s, year: y, month: m, dayStatus: {} };
+      const w = weeksOfMonth(y, m);
+      return { ...s, year: y, month: m, dayStatus: {}, includedWeeks: w.map((_, i) => i) };
     });
   }
-  function cycleDay(iso: string) {
+  function toggleWeek(i: number) {
+    setState((s) => ({
+      ...s,
+      includedWeeks: s.includedWeeks.includes(i) ? s.includedWeeks.filter((x) => x !== i) : [...s.includedWeeks, i].sort((a, b) => a - b),
+    }));
+  }
+  function paintDay(iso: string, weekIdx: number) {
     setState((s) => {
-      const cur = (s.dayStatus[iso] ?? "none") as "none" | DayStatus;
-      const nx = NEXT[cur];
       const ds = { ...s.dayStatus };
-      if (nx === "none") delete ds[iso];
-      else ds[iso] = nx;
-      return { ...s, dayStatus: ds };
+      if (mode === "clear") delete ds[iso];
+      else ds[iso] = mode;
+      // 표시 안 되는 주차에 칠하면 자동 포함
+      const iw = s.includedWeeks.includes(weekIdx) ? s.includedWeeks : [...s.includedWeeks, weekIdx].sort((a, b) => a - b);
+      return { ...s, dayStatus: ds, includedWeeks: iw };
     });
   }
   function setCfg(st: DayStatus, patch: Partial<NoticeState["statusConfig"][DayStatus]>) {
@@ -109,7 +118,7 @@ export default function App() {
         const common = { width: size.w, height: size.h, pixelRatio: 1, cacheBust: true };
         const dataUrl =
           size.fmt === "jpg"
-            ? await htmlToImage.toJpeg(node, { ...common, quality: 0.85, backgroundColor: "#ffffff" })
+            ? await htmlToImage.toJpeg(node, { ...common, quality: 0.9, backgroundColor: "#ffffff" })
             : await htmlToImage.toPng(node, common);
         const a = document.createElement("a");
         a.href = dataUrl;
@@ -135,7 +144,6 @@ export default function App() {
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 24, padding: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-        {/* 컨트롤 */}
         <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 16 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>진료 안내 이미지 생성기</h1>
 
@@ -150,51 +158,86 @@ export default function App() {
 
           <section style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <label style={lbl}>월 선택 & 날짜별 진료 상태</label>
+              <label style={lbl}>월 / 주차 선택</label>
               <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 14 }}>
                 <button onClick={() => shiftMonth(-1)} style={navBtn}>◀</button>
-                <b>
-                  {state.year}.{state.month} ({MONTH_ENG[state.month - 1]})
-                </b>
+                <b>{state.year}.{state.month} ({MONTH_ENG[state.month - 1]})</b>
                 <button onClick={() => shiftMonth(1)} style={navBtn}>▶</button>
               </div>
             </div>
-            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 8px" }}>
-              날짜를 클릭할 때마다 상태가 바뀝니다: 없음 → <span style={{ color: "#8E949B" }}>정상</span> → <span style={{ color: "#E9531F" }}>단축</span> → <span style={{ color: "#E9531F", fontWeight: 700 }}>휴진</span> → 없음. 선택한 날짜들이 이미지에 연속으로 표시됩니다.
-            </p>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 8px" }}>이미지에 표시할 <b>주차</b>를 고르세요 (기본: 전체).</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {weeks.map((wk, i) => {
+                const inM = wk.filter((c) => c.inMonth);
+                const on = state.includedWeeks.includes(i);
+                return (
+                  <button key={i} onClick={() => toggleWeek(i)} style={{ ...chip, ...(on ? chipOn : {}) }}>
+                    {i + 1}주 ({inM[0].day}~{inM[inM.length - 1].day})
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section style={card}>
+            <label style={lbl}>진료 상태 지정</label>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 8px" }}>먼저 상태를 고르고, 아래 달력에서 해당 날짜를 클릭하세요.</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+              {(["normal", "short", "closed", "clear"] as PaintMode[]).map((m) => {
+                const on = mode === m;
+                const st = m === "clear" ? null : CTRL_STYLE[m as DayStatus];
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    style={{
+                      borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      border: on ? "2px solid #18181b" : "1px solid #d4d4d8",
+                      ...(st && on ? { boxShadow: `inset 0 0 0 2px ${m === "closed" ? "#E9531F" : "transparent"}` } : {}),
+                      background: m === "closed" ? "#E9531F" : "#fff",
+                      color: m === "closed" ? "#fff" : m === "short" ? "#E9531F" : m === "normal" ? "#8E949B" : "#71717a",
+                    }}
+                  >
+                    {MODE_LABEL[m]}
+                  </button>
+                );
+              })}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, textAlign: "center", fontSize: 11, color: "#a1a1aa", marginBottom: 4 }}>
               {KO_WD.map((w) => (
                 <div key={w}>{w}</div>
               ))}
             </div>
-            {grid.map((row, ri) => (
-              <div key={ri} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
-                {row.map((iso, ci) =>
-                  iso === null ? (
-                    <div key={ci} />
-                  ) : (
-                    <button
-                      key={ci}
-                      onClick={() => cycleDay(iso)}
-                      style={{
-                        aspectRatio: "1", borderRadius: 8, fontSize: 13, cursor: "pointer",
-                        ...(state.dayStatus[iso] ? CTRL_STYLE[state.dayStatus[iso]] : { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }),
-                      }}
-                    >
-                      {Number(iso.split("-")[2])}
-                    </button>
-                  ),
-                )}
-              </div>
-            ))}
+            {weeks.map((wk, wi) => {
+              const weekOn = state.includedWeeks.includes(wi);
+              return (
+                <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4, opacity: weekOn ? 1 : 0.35 }}>
+                  {wk.map((cell, ci) => {
+                    if (!cell.inMonth) return <div key={ci} />;
+                    const stt = state.dayStatus[cell.iso];
+                    return (
+                      <button
+                        key={ci}
+                        onClick={() => paintDay(cell.iso, wi)}
+                        style={{
+                          aspectRatio: "1", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                          ...(stt ? CTRL_STYLE[stt] : { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }),
+                        }}
+                      >
+                        {cell.day}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </section>
 
-          {/* 하단 안내문구 — 달력 선택에서 자동, 시간/표시만 */}
           <section style={card}>
-            <label style={lbl}>하단 안내 문구 (달력 선택에서 자동 생성)</label>
-            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 10px" }}>날짜는 위 달력에서 정해집니다. 여기선 표시 여부(체크)와 시간만 설정하세요.</p>
+            <label style={lbl}>하단 안내 문구</label>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 10px" }}>위에서 지정한 날짜가 자동으로 들어갑니다. 표시 여부와 시간만 설정하세요.</p>
             {STATUS_ORDER.map((st) => {
-              const dates = Object.keys(state.dayStatus).filter((iso) => state.dayStatus[iso] === st);
+              const dates = [...includedIsos].filter((iso) => state.dayStatus[iso] === st);
               const cfg = state.statusConfig[st];
               const active = dates.length > 0;
               return (
@@ -210,7 +253,7 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: "#52525b", marginTop: 6 }}>{active ? formatDateList(dates) : "해당 상태로 선택된 날짜 없음"}</div>
+                  <div style={{ fontSize: 12, color: "#52525b", marginTop: 6 }}>{active ? formatDateList(dates) : "지정된 날짜 없음"}</div>
                 </div>
               );
             })}
@@ -220,7 +263,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* 사이즈 + 변환 */}
           <section style={card}>
             <label style={lbl}>이미지 사이즈 (중복 선택)</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "8px 0 12px" }}>
@@ -233,23 +275,20 @@ export default function App() {
                 );
               })}
             </div>
-            <p style={{ fontSize: 11, color: "#a1a1aa", margin: "0 0 10px" }}>A4는 인쇄용 JPG(고화질), 팝업·인스타는 웹용 PNG로 저장됩니다.</p>
+            <p style={{ fontSize: 11, color: "#a1a1aa", margin: "0 0 10px" }}>A4=인쇄용 JPG, 팝업·인스타=웹용 PNG.</p>
             <button onClick={handleExport} disabled={exporting || exportSizes.length === 0} style={{ ...primaryBtn, opacity: exporting || exportSizes.length === 0 ? 0.5 : 1 }}>
               {exporting ? "이미지 생성 중..." : `이미지 변환하기 (${exportSizes.length}장)`}
             </button>
           </section>
         </div>
 
-        {/* 미리보기 */}
         <div style={{ position: "sticky", top: 16 }}>
           <div style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <span style={lbl}>미리보기</span>
               <select value={previewSize} onChange={(e) => setPreviewSize(e.target.value as OutputSize)} style={inpSm}>
                 {OUTPUT_SIZES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
+                  <option key={s.id} value={s.id}>{s.label}</option>
                 ))}
               </select>
             </div>
@@ -262,7 +301,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* 숨김 내보내기 노드 */}
       <div style={{ position: "fixed", left: -100000, top: 0, pointerEvents: "none" }} aria-hidden>
         {exportSizes.map((sz) => (
           <div key={sz} ref={(el) => { posterRefs.current[sz] = el; }}>
