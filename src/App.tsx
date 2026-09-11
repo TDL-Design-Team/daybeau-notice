@@ -13,12 +13,11 @@ import {
   defaultStatusConfig,
 } from "@/lib/notice/types";
 
-type PaintMode = DayStatus | "clear";
+type PaintMode = DayStatus;
 const MODE_LABEL: Record<PaintMode, string> = {
   normal: "정상 진료",
   short: "단축 진료",
   closed: "휴진",
-  clear: "지우기",
 };
 // 상태별 색 (정상=회색테두리, 단축=주황테두리, 휴진=주황채움+흰글자)
 const CTRL_STYLE: Record<DayStatus, React.CSSProperties> = {
@@ -91,9 +90,9 @@ export default function App() {
   function paintDay(iso: string, weekIdx: number) {
     setState((s) => {
       const ds = { ...s.dayStatus };
-      if (mode === "clear") delete ds[iso];
+      // 같은 상태를 다시 누르면 해제(토글), 아니면 현재 상태로 지정
+      if (ds[iso] === mode) delete ds[iso];
       else ds[iso] = mode;
-      // 표시 안 되는 주차에 칠하면 자동 포함
       const iw = s.includedWeeks.includes(weekIdx) ? s.includedWeeks : [...s.includedWeeks, weekIdx].sort((a, b) => a - b);
       return { ...s, dayStatus: ds, includedWeeks: iw };
     });
@@ -181,21 +180,19 @@ export default function App() {
 
           <section style={card}>
             <label style={lbl}>진료 상태 지정</label>
-            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 8px" }}>먼저 상태를 고르고, 아래 달력에서 해당 날짜를 클릭하세요.</p>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 8px" }}>상태를 고르고 달력에서 날짜를 클릭하세요. 같은 상태를 <b>다시 클릭하면 해제</b>됩니다.</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-              {(["normal", "short", "closed", "clear"] as PaintMode[]).map((m) => {
+              {(["normal", "short", "closed"] as PaintMode[]).map((m) => {
                 const on = mode === m;
-                const st = m === "clear" ? null : CTRL_STYLE[m as DayStatus];
                 return (
                   <button
                     key={m}
                     onClick={() => setMode(m)}
                     style={{
-                      borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
                       border: on ? "2px solid #18181b" : "1px solid #d4d4d8",
-                      ...(st && on ? { boxShadow: `inset 0 0 0 2px ${m === "closed" ? "#E9531F" : "transparent"}` } : {}),
                       background: m === "closed" ? "#E9531F" : "#fff",
-                      color: m === "closed" ? "#fff" : m === "short" ? "#E9531F" : m === "normal" ? "#8E949B" : "#71717a",
+                      color: m === "closed" ? "#fff" : m === "short" ? "#E9531F" : "#8E949B",
                     }}
                   >
                     {MODE_LABEL[m]}

@@ -59,8 +59,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     octT: 0.203,
     notT: 0.283,
     month: { l: 0.535, t: 0.223, font: 0.031 },
-    cal: { l: 0.108, t: 0.455, w: 0.776, wdFont: 0.016, dateFont: 0.032, circle: 0.083, rowGap: 0.015, labelFont: 0.0135 },
-    bottom: { l: 0.108, t: 0.648, w: 0.784, h: 0.197, pillFont: 0.016, dateFont: 0.023, timeFont: 0.018 },
+    cal: { l: 0.108, t: 0.44, w: 0.776, wdFont: 0.016, dateFont: 0.036, circle: 0.088, rowGap: 0.015, labelFont: 0.0135 },
+    bottom: { l: 0.108, t: 0.75, w: 0.784, h: 0.15, pillFont: 0.018, dateFont: 0.018, timeFont: 0.016 },
   },
   insta: {
     bg: bgInsta,
@@ -71,8 +71,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     octT: 0.212,
     notT: 0.298,
     month: { l: 0.612, t: 0.262, font: 0.033 },
-    cal: { l: 0.12, t: 0.5, w: 0.76, wdFont: 0.017, dateFont: 0.034, circle: 0.088, rowGap: 0.016, labelFont: 0.014 },
-    bottom: { l: 0.121, t: 0.71, w: 0.758, h: 0.185, pillFont: 0.017, dateFont: 0.024, timeFont: 0.019 },
+    cal: { l: 0.12, t: 0.505, w: 0.76, wdFont: 0.018, dateFont: 0.038, circle: 0.094, rowGap: 0.016, labelFont: 0.014 },
+    bottom: { l: 0.121, t: 0.76, w: 0.758, h: 0.15, pillFont: 0.019, dateFont: 0.019, timeFont: 0.017 },
   },
   mo: {
     bg: bgMo,
@@ -84,8 +84,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     octT: 0.235,
     notT: 0.305,
     month: { l: 0.52, t: 0.243, font: 0.028 },
-    cal: { l: 0.11, t: 0.45, w: 0.78, wdFont: 0.022, dateFont: 0.04, circle: 0.1, rowGap: 0.018, labelFont: 0.016 },
-    bottom: { l: 0.121, t: 0.685, w: 0.758, h: 0.183, pillFont: 0.019, dateFont: 0.023, timeFont: 0.019 },
+    cal: { l: 0.11, t: 0.465, w: 0.78, wdFont: 0.024, dateFont: 0.048, circle: 0.11, rowGap: 0.018, labelFont: 0.017 },
+    bottom: { l: 0.121, t: 0.72, w: 0.758, h: 0.16, pillFont: 0.022, dateFont: 0.022, timeFont: 0.02 },
   },
   pc: {
     bg: bgPc,
@@ -97,8 +97,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     octT: 0.35,
     notT: 0.49,
     month: { l: 0.088, t: 0.66, font: 0.06 },
-    cal: { l: 0.4, t: 0.36, w: 0.53, wdFont: 0.03, dateFont: 0.055, circle: 0.06, rowGap: 0.02, labelFont: 0.024 },
-    bottom: { l: 0.406, t: 0.644, w: 0.521, h: 0.275, pillFont: 0.028, dateFont: 0.032, timeFont: 0.026 },
+    cal: { l: 0.4, t: 0.34, w: 0.53, wdFont: 0.03, dateFont: 0.058, circle: 0.062, rowGap: 0.02, labelFont: 0.024 },
+    bottom: { l: 0.406, t: 0.62, w: 0.521, h: 0.3, pillFont: 0.03, dateFont: 0.03, timeFont: 0.027 },
   },
 };
 
@@ -137,18 +137,24 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
 
   const cellW = (spec.cal.w * W) / 7;
   const labelH = px(spec.cal.labelFont) * (variant === "mo" ? 2.6 : 1.9);
-  // 달력이 하단 박스를 침범하지 않도록, 주차 수에 맞춰 행 높이/간격/원 크기 자동 축소.
-  // 행 구성 = dateRowH + (라벨) + 간격(dateRowH*0.4). N행이 예산 안에 들어가게 역산.
-  const calBudget = (spec.bottom.t - spec.cal.t) * H - px(spec.cal.wdFont) * 1.6 - px(0.04);
+  // 반응형: 달력(요일헤더~마지막 행)이 [cal.t, bottom.t] 영역에 들어가되,
+  // 주차가 적으면 이상적 크기로 크게 + 세로 중앙, 많으면 영역에 맞게 축소.
+  const header = px(spec.cal.wdFont) * 1.7;
+  const areaH = (spec.bottom.t - spec.cal.t) * H - px(0.02); // 달력 배치 가능 총 높이
   const nRows = Math.max(1, rows.length);
   const labelSpace = hideLabels ? 0 : labelH;
   const idealRowH = spec.cal.circle * W * 1.05;
-  let dateRowH = Math.min(idealRowH, (calBudget / nRows - labelSpace) / 1.4);
-  dateRowH = Math.max(px(0.012), dateRowH);
+  const perRow = (rh: number) => rh * 1.4 + labelSpace; // 행+간격+라벨
+  let dateRowH = idealRowH;
+  if (header + perRow(idealRowH) * nRows > areaH) {
+    dateRowH = Math.max(px(0.02), (areaH - header) / nRows / 1.4 - labelSpace / 1.4);
+  }
   const rowGap = dateRowH * 0.4;
   const circleD = Math.min(spec.cal.circle * W, dateRowH * 0.92, cellW * 0.92);
-  const calScale = circleD / (spec.cal.circle * W); // 축소 비율
+  const calScale = circleD / (spec.cal.circle * W);
   const dateFont = px(spec.cal.dateFont) * calScale;
+  const usedCalH = header + perRow(dateRowH) * nRows;
+  const calTopOffset = Math.max(0, (areaH - usedCalH) / 2); // 적으면 세로 중앙
 
   // 영문 월 이름이 길면(September 등) 오른쪽 요소와 겹치지 않게 타이틀 자동 축소.
   // October/NOTICE 동일 크기 유지.
@@ -190,8 +196,8 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
         <span style={{ fontSize: px(spec.month.font), fontWeight: 500 }}>진료 안내</span>
       </div>
 
-      {/* 달력 strip */}
-      <div style={{ position: "absolute", left: spec.cal.l * W, top: spec.cal.t * H, width: spec.cal.w * W }}>
+      {/* 달력 */}
+      <div style={{ position: "absolute", left: spec.cal.l * W, top: spec.cal.t * H + calTopOffset, width: spec.cal.w * W }}>
         {/* 요일 헤더 (일~토 고정) */}
         <div style={{ display: "flex", marginBottom: px(0.008) }}>
           {KO_WD.map((wd, i) => (
@@ -292,8 +298,8 @@ function BottomBox({ spec, W, H, px, state }: { spec: VariantSpec["bottom"]; W: 
         return (
           <div key={st} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: px(0.014), whiteSpace: "nowrap", maxWidth: "100%" }}>
             {statusPill(st, px(spec.pillFont))}
-            <span style={{ fontSize: px(spec.dateFont), color: "#3F3F3F", fontWeight: 600 }}>{formatDateList(dates)}</span>
-            {timeStr && <span style={{ fontSize: px(spec.timeFont), color: "#6A6A6A", fontWeight: 500 }}>{timeStr}</span>}
+            <span style={{ fontSize: px(spec.dateFont), color: "#3F3F3F", fontWeight: 500 }}>{formatDateList(dates)}</span>
+            {timeStr && <span style={{ fontSize: px(spec.timeFont), color: "#8A8A8A", fontWeight: 400 }}>{timeStr}</span>}
           </div>
         );
       })}
