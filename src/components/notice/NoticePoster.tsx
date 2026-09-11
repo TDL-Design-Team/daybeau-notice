@@ -40,6 +40,7 @@ type VariantSpec = {
   octFont: number;
   notFont: number;
   titleL: number;
+  titleRight: number; // 타이틀이 넘으면 안 되는 오른쪽 경계 (겹침 방지)
   octT: number;
   notT: number;
   month: { l: number; t: number; font: number };
@@ -54,7 +55,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     branch: { right: 0.039, t: 0.028, font: 0.0165 },
     octFont: 0.06,
     notFont: 0.057,
-    titleL: 0.138,
+    titleL: 0.138, titleRight: 0.51,
     octT: 0.203,
     notT: 0.283,
     month: { l: 0.535, t: 0.223, font: 0.031 },
@@ -66,7 +67,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     header: false,
     octFont: 0.066,
     notFont: 0.062,
-    titleL: 0.147,
+    titleL: 0.147, titleRight: 0.57,
     octT: 0.212,
     notT: 0.298,
     month: { l: 0.612, t: 0.262, font: 0.033 },
@@ -79,7 +80,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     branch: { right: 0.056, t: 0.042, font: 0.022 },
     octFont: 0.062,
     notFont: 0.058,
-    titleL: 0.127,
+    titleL: 0.127, titleRight: 0.47,
     octT: 0.235,
     notT: 0.305,
     month: { l: 0.52, t: 0.243, font: 0.028 },
@@ -92,7 +93,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     branch: { right: 0.031, t: 0.062, font: 0.03 },
     octFont: 0.13,
     notFont: 0.12,
-    titleL: 0.089,
+    titleL: 0.089, titleRight: 0.37,
     octT: 0.35,
     notT: 0.49,
     month: { l: 0.088, t: 0.66, font: 0.06 },
@@ -136,16 +137,24 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
 
   const cellW = (spec.cal.w * W) / 7;
   const labelH = px(spec.cal.labelFont) * (variant === "mo" ? 2.6 : 1.9);
-  const rowGap = px(spec.cal.rowGap);
-  // 달력이 하단 박스를 침범하지 않도록, 주차 수에 맞춰 행 높이/원 크기 자동 축소
-  const calBudget = (spec.bottom.t - spec.cal.t) * H - px(spec.cal.wdFont) * 1.6 - px(0.02);
-  const perRowExtra = (hideLabels ? 0 : labelH) + rowGap;
-  const idealRowH = spec.cal.circle * W * 1.05;
+  // 달력이 하단 박스를 침범하지 않도록, 주차 수에 맞춰 행 높이/간격/원 크기 자동 축소.
+  // 행 구성 = dateRowH + (라벨) + 간격(dateRowH*0.4). N행이 예산 안에 들어가게 역산.
+  const calBudget = (spec.bottom.t - spec.cal.t) * H - px(spec.cal.wdFont) * 1.6 - px(0.04);
   const nRows = Math.max(1, rows.length);
-  const dateRowH = Math.min(idealRowH, Math.max(px(0.028), calBudget / nRows - perRowExtra));
+  const labelSpace = hideLabels ? 0 : labelH;
+  const idealRowH = spec.cal.circle * W * 1.05;
+  let dateRowH = Math.min(idealRowH, (calBudget / nRows - labelSpace) / 1.4);
+  dateRowH = Math.max(px(0.012), dateRowH);
+  const rowGap = dateRowH * 0.4;
   const circleD = Math.min(spec.cal.circle * W, dateRowH * 0.92, cellW * 0.92);
   const calScale = circleD / (spec.cal.circle * W); // 축소 비율
   const dateFont = px(spec.cal.dateFont) * calScale;
+
+  // 영문 월 이름이 길면(September 등) 오른쪽 요소와 겹치지 않게 타이틀 자동 축소.
+  // October/NOTICE 동일 크기 유지.
+  const monthName = MONTH_ENG[state.month - 1];
+  const availTitleW = (spec.titleRight - spec.titleL) * W;
+  const titleFont = Math.min(px(spec.octFont), availTitleW / (Math.max(monthName.length, 6) * 0.56));
 
   const root: CSSProperties = {
     position: "relative",
@@ -167,11 +176,11 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
         </div>
       )}
 
-      {/* October / NOTICE (Optima) */}
-      <div style={{ position: "absolute", left: spec.titleL * W, top: spec.octT * H, fontFamily: "Optima, serif", fontWeight: 500, fontSize: px(spec.octFont), color: DARK, lineHeight: 1 }}>
-        {MONTH_ENG[state.month - 1]}
+      {/* October / NOTICE (Optima) — 동일 크기, 오른쪽 겹침 방지 자동 축소 */}
+      <div style={{ position: "absolute", left: spec.titleL * W, top: spec.octT * H, fontFamily: "Optima, serif", fontWeight: 500, fontSize: titleFont, color: DARK, lineHeight: 1, whiteSpace: "nowrap" }}>
+        {monthName}
       </div>
-      <div style={{ position: "absolute", left: spec.titleL * W, top: spec.notT * H, fontFamily: "Optima, serif", fontWeight: 500, fontSize: px(spec.notFont), color: DARK, lineHeight: 1, letterSpacing: "0.01em" }}>
+      <div style={{ position: "absolute", left: spec.titleL * W, top: spec.notT * H, fontFamily: "Optima, serif", fontWeight: 500, fontSize: titleFont, color: DARK, lineHeight: 1, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
         NOTICE
       </div>
 
@@ -195,7 +204,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
         {rows.map((row, ri) => {
           const runs = runsInRow(row, state.dayStatus);
           return (
-            <div key={ri} style={{ position: "relative", height: dateRowH, marginBottom: hideLabels ? px(spec.cal.rowGap) : labelH + px(spec.cal.rowGap) }}>
+            <div key={ri} style={{ position: "relative", height: dateRowH, marginBottom: hideLabels ? rowGap : labelH + rowGap }}>
               {/* 강조 도형 (원/캡슐) */}
               {runs.map((run, i) => {
                 const s = STATUS_STYLE[run.status];
@@ -271,23 +280,25 @@ function BottomBox({ spec, W, H, px, state }: { spec: VariantSpec["bottom"]; W: 
     return cfg.include && dates.length > 0;
   });
 
+  // 한 줄에 [상태] 날짜 · 시간 (가로 배치). 위아래 패딩 동일.
+  const rowGap = px(0.014);
   return (
-    <div style={{ position: "absolute", left: spec.l * W, top: spec.t * H, width: spec.w * W, minHeight: spec.h * H, border: `${Math.max(2, px(0.0013))}px solid ${ORANGE}`, borderRadius: px(0.004), boxSizing: "border-box", padding: `${px(0.014)}px ${px(0.028)}px`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: px(0.013) }}>
+    <div style={{ position: "absolute", left: spec.l * W, top: spec.t * H, width: spec.w * W, height: spec.h * H, border: `${Math.max(2, px(0.0013))}px solid ${ORANGE}`, borderRadius: px(0.004), boxSizing: "border-box", padding: `${px(0.02)}px ${px(0.03)}px`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: rowGap, overflow: "hidden" }}>
       {blocks.length === 0 && <span style={{ color: "#bbb", fontSize: px(spec.dateFont) }}>날짜를 선택하세요</span>}
       {blocks.map((st) => {
         const dates = Object.keys(state.dayStatus).filter((iso) => state.dayStatus[iso] === st);
         const cfg = state.statusConfig[st];
         const timeStr = st === "closed" ? "" : formatTimeRange(cfg.startTime, cfg.endTime);
         return (
-          <div key={st} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: px(0.005) }}>
+          <div key={st} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: px(0.014), whiteSpace: "nowrap", maxWidth: "100%" }}>
             {statusPill(st, px(spec.pillFont))}
-            <div style={{ fontSize: px(spec.dateFont), color: "#4A4A4A", fontWeight: 500, textAlign: "center" }}>{formatDateList(dates)}</div>
-            {timeStr && <div style={{ fontSize: px(spec.timeFont), color: "#4A4A4A", fontWeight: 500, textAlign: "center" }}>{timeStr}</div>}
+            <span style={{ fontSize: px(spec.dateFont), color: "#3F3F3F", fontWeight: 600 }}>{formatDateList(dates)}</span>
+            {timeStr && <span style={{ fontSize: px(spec.timeFont), color: "#6A6A6A", fontWeight: 500 }}>{timeStr}</span>}
           </div>
         );
       })}
       {state.extraText.trim() && (
-        <div style={{ fontSize: px(spec.timeFont) * 0.85, color: "#7A7A7A", whiteSpace: "pre-line", textAlign: "center", lineHeight: 1.4 }}>{state.extraText}</div>
+        <div style={{ fontSize: px(spec.timeFont) * 0.85, color: "#7A7A7A", whiteSpace: "pre-line", textAlign: "center", lineHeight: 1.35 }}>{state.extraText}</div>
       )}
     </div>
   );
