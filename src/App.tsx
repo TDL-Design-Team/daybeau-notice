@@ -1,140 +1,100 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as htmlToImage from "html-to-image";
 import NoticePoster from "@/components/notice/NoticePoster";
 import { NOTICE_BRANCHES } from "@/lib/notice/branches";
+import { KO_WD, MONTH_ENG, formatDateList, toIso } from "@/lib/notice/calendar";
 import {
-  MONTH_ENG,
-  WeekRow,
-  nextMonthFirstWeek,
-  weeksOfMonth,
-} from "@/lib/notice/calendar";
-import {
-  BottomEntry,
   DayStatus,
   NoticeState,
   OUTPUT_SIZES,
   OutputSize,
   STATUS_LABEL,
+  STATUS_ORDER,
+  defaultStatusConfig,
 } from "@/lib/notice/types";
 
-const STATUS_ORDER: (DayStatus | null)[] = [null, "normal", "short", "closed"];
-const STATUS_COLORS: Record<DayStatus, string> = {
-  normal: "#E9531F",
-  short: "#E9531F",
-  closed: "#E9531F",
+const NEXT: Record<"none" | DayStatus, "none" | DayStatus> = {
+  none: "normal",
+  normal: "short",
+  short: "closed",
+  closed: "none",
+};
+const CTRL_STYLE: Record<DayStatus, { bg: string; color: string; border: string }> = {
+  normal: { bg: "transparent", color: "#8E949B", border: "2px solid #8E949B" },
+  short: { bg: "transparent", color: "#E9531F", border: "2px solid #E9531F" },
+  closed: { bg: "#E9531F", color: "#fff", border: "2px solid #E9531F" },
 };
 
-function uid() {
-  return Math.random().toString(36).slice(2, 9);
+// 컨트롤용 월 그리드 (일~토)
+function monthGrid(year: number, month: number): (string | null)[][] {
+  const first = new Date(year, month - 1, 1);
+  const startDow = first.getDay(); // 0=일
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cells: (string | null)[] = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(toIso(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  const rows: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
 }
 
-export default function NoticeGeneratorPage() {
+export default function App() {
   const now = new Date();
   const [state, setState] = useState<NoticeState>({
     branch: NOTICE_BRANCHES[0],
     year: now.getFullYear(),
     month: now.getMonth() + 1,
-    includedWeeks: [],
     dayStatus: {},
-    bottomEntries: [],
+    statusConfig: defaultStatusConfig(),
     extraText: "",
   });
-  const [previewSize, setPreviewSize] = useState<OutputSize>("insta");
-  const [exportSizes, setExportSizes] = useState<OutputSize[]>(["insta"]);
+  const [previewSize, setPreviewSize] = useState<OutputSize>("a4");
+  const [exportSizes, setExportSizes] = useState<OutputSize[]>(["a4"]);
   const [exporting, setExporting] = useState(false);
   const posterRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // 월의 주들 + 다음달 1주차
-  const monthWeeks = useMemo(() => weeksOfMonth(state.year, state.month), [state.year, state.month]);
-  const extraWeek = useMemo(
-    () => nextMonthFirstWeek(state.year, state.month),
-    [state.year, state.month],
-  );
-  const allRows: WeekRow[] = useMemo(() => [...monthWeeks, extraWeek], [monthWeeks, extraWeek]);
+  const grid = useMemo(() => monthGrid(state.year, state.month), [state.year, state.month]);
 
-  // 월 바뀌면 주차 전체 선택으로 초기화 (다음달주 제외)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((s) => ({ ...s, includedWeeks: monthWeeks.map((_, i) => i) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.year, state.month]);
-
-  const includedRows = useMemo(
-    () => allRows.filter((_, i) => state.includedWeeks.includes(i)),
-    [allRows, state.includedWeeks],
-  );
-
-  // 이탈 경고 (저장 안 됨)
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
+    const h = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
   }, []);
 
   function shiftMonth(delta: number) {
     setState((s) => {
-      let m = s.month + delta;
-      let y = s.year;
+      let m = s.month + delta,
+        y = s.year;
       if (m < 1) {
         m = 12;
-        y -= 1;
+        y--;
       } else if (m > 12) {
         m = 1;
-        y += 1;
+        y++;
       }
-      return { ...s, year: y, month: m };
+      return { ...s, year: y, month: m, dayStatus: {} };
     });
   }
-
-  function toggleWeek(i: number) {
-    setState((s) => ({
-      ...s,
-      includedWeeks: s.includedWeeks.includes(i)
-        ? s.includedWeeks.filter((x) => x !== i)
-        : [...s.includedWeeks, i].sort((a, b) => a - b),
-    }));
-  }
-
   function cycleDay(iso: string) {
     setState((s) => {
-      const cur = s.dayStatus[iso] ?? null;
-      const next = STATUS_ORDER[(STATUS_ORDER.indexOf(cur) + 1) % STATUS_ORDER.length];
+      const cur = (s.dayStatus[iso] ?? "none") as "none" | DayStatus;
+      const nx = NEXT[cur];
       const ds = { ...s.dayStatus };
-      if (next === null) delete ds[iso];
-      else ds[iso] = next;
+      if (nx === "none") delete ds[iso];
+      else ds[iso] = nx;
       return { ...s, dayStatus: ds };
     });
   }
-
-  function addEntry() {
-    setState((s) => ({
-      ...s,
-      bottomEntries: [
-        ...s.bottomEntries,
-        { id: uid(), type: "short", startDate: null, endDate: null, startTime: "10:00", endTime: "19:00" },
-      ],
-    }));
+  function setCfg(st: DayStatus, patch: Partial<NoticeState["statusConfig"][DayStatus]>) {
+    setState((s) => ({ ...s, statusConfig: { ...s.statusConfig, [st]: { ...s.statusConfig[st], ...patch } } }));
   }
-  function updateEntry(id: string, patch: Partial<BottomEntry>) {
-    setState((s) => ({
-      ...s,
-      bottomEntries: s.bottomEntries.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-    }));
-  }
-  function removeEntry(id: string) {
-    setState((s) => ({ ...s, bottomEntries: s.bottomEntries.filter((e) => e.id !== id) }));
-  }
-
-  function onExtraChange(v: string) {
-    // 6줄 / 45자 per line / 270자 제한
+  function onExtra(v: string) {
     const lines = v.split("\n").slice(0, 6).map((l) => l.slice(0, 45));
-    let joined = lines.join("\n");
-    if (joined.length > 270) joined = joined.slice(0, 270);
-    setState((s) => ({ ...s, extraText: joined }));
+    setState((s) => ({ ...s, extraText: lines.join("\n").slice(0, 270) }));
   }
 
   async function handleExport() {
@@ -146,275 +106,146 @@ export default function NoticeGeneratorPage() {
         const node = posterRefs.current[sz];
         if (!node) continue;
         const size = OUTPUT_SIZES.find((s) => s.id === sz)!;
-        const dataUrl = await htmlToImage.toPng(node, {
-          width: size.w,
-          height: size.h,
-          pixelRatio: 1,
-          cacheBust: true,
-        });
+        const common = { width: size.w, height: size.h, pixelRatio: 1, cacheBust: true };
+        const dataUrl =
+          size.fmt === "jpg"
+            ? await htmlToImage.toJpeg(node, { ...common, quality: 0.85, backgroundColor: "#ffffff" })
+            : await htmlToImage.toPng(node, common);
         const a = document.createElement("a");
         a.href = dataUrl;
-        a.download = `${state.branch}_${state.month}월진료안내_${size.label}.png`;
+        a.download = `${state.branch}_${state.month}월진료안내_${size.label}.${size.fmt}`;
         a.click();
         await new Promise((r) => setTimeout(r, 150));
       }
-    } catch (err) {
-      console.error(err);
-      alert("이미지 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } catch (e) {
+      console.error(e);
+      alert("이미지 생성 중 오류가 발생했습니다.");
     } finally {
       setExporting(false);
     }
   }
 
-  const previewSpec = OUTPUT_SIZES.find((s) => s.id === previewSize)!;
-  const previewMaxW = 460;
-  const previewScale = Math.min(previewMaxW / previewSpec.w, 620 / previewSpec.h);
+  const preview = OUTPUT_SIZES.find((s) => s.id === previewSize)!;
+  const scale = Math.min(460 / preview.w, 620 / preview.h);
 
   return (
-    <div className="min-h-screen bg-zinc-100 text-zinc-900">
-      {/* 상단 경고 배너 */}
-      <div className="bg-amber-100 px-4 py-2 text-center text-xs text-amber-800">
-        ⚠️ 이 페이지는 입력 내용을 <b>저장하지 않습니다</b>. 새로고침하거나 창을 닫으면 모두
-        사라지니, 완성되면 <b>이미지로 꼭 다운로드</b>하세요.
+    <div style={{ minHeight: "100vh", background: "#f4f4f5", color: "#18181b" }}>
+      <div style={{ background: "#fef3c7", padding: "8px 16px", textAlign: "center", fontSize: 12, color: "#92400e" }}>
+        ⚠️ 이 페이지는 입력 내용을 <b>저장하지 않습니다</b>. 새로고침·창닫기 시 모두 사라지니 완성되면 <b>이미지로 꼭 다운로드</b>하세요.
       </div>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:flex-row lg:items-start">
-        {/* ===== 컨트롤 ===== */}
-        <div className="flex-1 space-y-5">
-          <h1 className="text-lg font-bold">진료 안내 이미지 생성기</h1>
+      <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 24, padding: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {/* 컨트롤 */}
+        <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 16 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>진료 안내 이미지 생성기</h1>
 
-          {/* 지점 */}
-          <section className="rounded-lg border border-zinc-200 bg-white p-4">
-            <label className="mb-1 block text-sm font-semibold">지점</label>
-            <select
-              value={state.branch}
-              onChange={(e) => setState((s) => ({ ...s, branch: e.target.value }))}
-              className="w-full rounded border border-zinc-300 p-2 text-sm"
-            >
+          <section style={card}>
+            <label style={lbl}>지점</label>
+            <select value={state.branch} onChange={(e) => setState((s) => ({ ...s, branch: e.target.value }))} style={inp}>
               {NOTICE_BRANCHES.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
+                <option key={b}>{b}</option>
               ))}
             </select>
           </section>
 
-          {/* 월 + 주차 */}
-          <section className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <label className="text-sm font-semibold">월 / 주차 선택</label>
-              <div className="flex items-center gap-3 text-sm">
-                <button onClick={() => shiftMonth(-1)} className="rounded border px-2 py-0.5">
-                  ◀
-                </button>
-                <span className="font-medium">
-                  {state.year}년 {state.month}월 ({MONTH_ENG[state.month - 1]})
-                </span>
-                <button onClick={() => shiftMonth(1)} className="rounded border px-2 py-0.5">
-                  ▶
-                </button>
+          <section style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={lbl}>월 선택 & 날짜별 진료 상태</label>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 14 }}>
+                <button onClick={() => shiftMonth(-1)} style={navBtn}>◀</button>
+                <b>
+                  {state.year}.{state.month} ({MONTH_ENG[state.month - 1]})
+                </b>
+                <button onClick={() => shiftMonth(1)} style={navBtn}>▶</button>
               </div>
             </div>
-            <p className="mb-2 text-xs text-zinc-500">
-              포스터에 표시할 주차를 선택하세요 (기본: 이번 달 전체). 필요하면 다음달 1주차까지 포함
-              가능합니다.
+            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 8px" }}>
+              날짜를 클릭할 때마다 상태가 바뀝니다: 없음 → <span style={{ color: "#8E949B" }}>정상</span> → <span style={{ color: "#E9531F" }}>단축</span> → <span style={{ color: "#E9531F", fontWeight: 700 }}>휴진</span> → 없음. 선택한 날짜들이 이미지에 연속으로 표시됩니다.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {allRows.map((week, i) => {
-                const isNext = i >= monthWeeks.length;
-                const first = week[0];
-                const last = week[6];
-                const label = isNext
-                  ? `다음달 1주차`
-                  : `${i + 1}주 (${first.day}~${last.day})`;
-                const on = state.includedWeeks.includes(i);
-                return (
-                  <button
-                    key={i}
-                    onClick={() => toggleWeek(i)}
-                    className={`rounded-full border px-3 py-1 text-xs ${
-                      on ? "border-orange-500 bg-orange-50 text-orange-700" : "border-zinc-300 text-zinc-500"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* 달력 날짜 상태 */}
-          <section className="rounded-lg border border-zinc-200 bg-white p-4">
-            <label className="mb-1 block text-sm font-semibold">날짜별 진료 상태</label>
-            <p className="mb-3 text-xs text-zinc-500">
-              날짜를 클릭할 때마다 상태가 바뀝니다: (없음) → 정상진료 → 단축진료 → 휴진일 → (없음)
-            </p>
-            <div className="space-y-1">
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-zinc-400">
-                {["월", "화", "수", "목", "금", "토", "일"].map((w) => (
-                  <div key={w}>{w}</div>
-                ))}
-              </div>
-              {includedRows.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 gap-1">
-                  {week.map((cell) => {
-                    const st = state.dayStatus[cell.iso];
-                    return (
-                      <button
-                        key={cell.iso}
-                        onClick={() => cycleDay(cell.iso)}
-                        className={`aspect-square rounded text-xs ${
-                          cell.inMonth ? "" : "opacity-40"
-                        }`}
-                        style={{
-                          background: st ? STATUS_COLORS[st] : "#f4f4f5",
-                          color: st ? "#fff" : "#71717a",
-                          border: st === "closed" ? "2px solid #E9531F" : "1px solid #e4e4e7",
-                        }}
-                        title={st ? STATUS_LABEL[st] : ""}
-                      >
-                        {cell.day}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, textAlign: "center", fontSize: 11, color: "#a1a1aa", marginBottom: 4 }}>
+              {KO_WD.map((w) => (
+                <div key={w}>{w}</div>
               ))}
             </div>
-            <div className="mt-2 flex gap-3 text-[11px] text-zinc-500">
-              <span>정상/단축진료 = 주황 테두리·글자</span>
-              <span>휴진일 = 주황 채움</span>
-            </div>
+            {grid.map((row, ri) => (
+              <div key={ri} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
+                {row.map((iso, ci) =>
+                  iso === null ? (
+                    <div key={ci} />
+                  ) : (
+                    <button
+                      key={ci}
+                      onClick={() => cycleDay(iso)}
+                      style={{
+                        aspectRatio: "1", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                        ...(state.dayStatus[iso] ? CTRL_STYLE[state.dayStatus[iso]] : { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }),
+                      }}
+                    >
+                      {Number(iso.split("-")[2])}
+                    </button>
+                  ),
+                )}
+              </div>
+            ))}
           </section>
 
-          {/* 하단 안내 문구 */}
-          <section className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-sm font-semibold">하단 안내 문구</label>
-              <button
-                onClick={addEntry}
-                className="rounded-full bg-orange-500 px-3 py-1 text-xs text-white"
-              >
-                + 항목 추가
-              </button>
-            </div>
-            <div className="space-y-3">
-              {state.bottomEntries.map((e) => (
-                <div key={e.id} className="rounded border border-zinc-200 p-3">
-                  <div className="mb-2 flex items-center gap-2">
-                    <select
-                      value={e.type}
-                      onChange={(ev) => updateEntry(e.id, { type: ev.target.value as DayStatus })}
-                      className="rounded border border-zinc-300 p-1 text-xs"
-                    >
-                      <option value="normal">정상 진료</option>
-                      <option value="short">단축 진료</option>
-                      <option value="closed">휴진일</option>
-                    </select>
-                    <button
-                      onClick={() => removeEntry(e.id)}
-                      className="ml-auto text-xs text-red-500"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <input
-                      type="date"
-                      value={e.startDate ?? ""}
-                      onChange={(ev) => updateEntry(e.id, { startDate: ev.target.value || null })}
-                      className="rounded border border-zinc-300 p-1"
-                    />
-                    <span>~</span>
-                    <input
-                      type="date"
-                      value={e.endDate ?? ""}
-                      onChange={(ev) => updateEntry(e.id, { endDate: ev.target.value || null })}
-                      className="rounded border border-zinc-300 p-1"
-                    />
-                    {e.type !== "closed" && (
-                      <>
-                        <input
-                          type="time"
-                          value={e.startTime}
-                          onChange={(ev) => updateEntry(e.id, { startTime: ev.target.value })}
-                          className="rounded border border-zinc-300 p-1"
-                        />
+          {/* 하단 안내문구 — 달력 선택에서 자동, 시간/표시만 */}
+          <section style={card}>
+            <label style={lbl}>하단 안내 문구 (달력 선택에서 자동 생성)</label>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 10px" }}>날짜는 위 달력에서 정해집니다. 여기선 표시 여부(체크)와 시간만 설정하세요.</p>
+            {STATUS_ORDER.map((st) => {
+              const dates = Object.keys(state.dayStatus).filter((iso) => state.dayStatus[iso] === st);
+              const cfg = state.statusConfig[st];
+              const active = dates.length > 0;
+              return (
+                <div key={st} style={{ opacity: active ? 1 : 0.4, borderTop: "1px solid #f0f0f0", padding: "10px 0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <input type="checkbox" checked={cfg.include} disabled={!active} onChange={(e) => setCfg(st, { include: e.target.checked })} />
+                    <span style={{ ...pillLbl, ...CTRL_STYLE[st] }}>{STATUS_LABEL[st]}</span>
+                    {st !== "closed" && active && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginLeft: "auto" }}>
+                        <input type="time" value={cfg.startTime} onChange={(e) => setCfg(st, { startTime: e.target.value })} style={inpSm} />
                         <span>-</span>
-                        <input
-                          type="time"
-                          value={e.endTime}
-                          onChange={(ev) => updateEntry(e.id, { endTime: ev.target.value })}
-                          className="rounded border border-zinc-300 p-1"
-                        />
-                      </>
+                        <input type="time" value={cfg.endTime} onChange={(e) => setCfg(st, { endTime: e.target.value })} style={inpSm} />
+                      </span>
                     )}
                   </div>
+                  <div style={{ fontSize: 12, color: "#52525b", marginTop: 6 }}>{active ? formatDateList(dates) : "해당 상태로 선택된 날짜 없음"}</div>
                 </div>
-              ))}
-              {state.bottomEntries.length === 0 && (
-                <p className="text-xs text-zinc-400">항목을 추가해 안내 문구를 만드세요.</p>
-              )}
-            </div>
-            <div className="mt-3">
-              <label className="mb-1 block text-xs font-semibold text-zinc-600">
-                기타 문구 (한 줄 최대 45자 · 최대 6줄 · 총 270자)
-              </label>
-              <textarea
-                value={state.extraText}
-                onChange={(e) => onExtraChange(e.target.value)}
-                rows={4}
-                className="w-full rounded border border-zinc-300 p-2 text-sm"
-                placeholder="추가로 넣을 안내 문구가 있으면 입력하세요."
-              />
-              <div className="text-right text-[11px] text-zinc-400">
-                {state.extraText.length}/270
-              </div>
+              );
+            })}
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#52525b" }}>기타 문구 (선택, 작게 표시)</label>
+              <textarea value={state.extraText} onChange={(e) => onExtra(e.target.value)} rows={2} style={{ ...inp, marginTop: 4 }} placeholder="추가 안내 문구" />
             </div>
           </section>
 
           {/* 사이즈 + 변환 */}
-          <section className="rounded-lg border border-zinc-200 bg-white p-4">
-            <label className="mb-2 block text-sm font-semibold">이미지 사이즈 (중복 선택)</label>
-            <div className="mb-3 flex flex-wrap gap-2">
+          <section style={card}>
+            <label style={lbl}>이미지 사이즈 (중복 선택)</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "8px 0 12px" }}>
               {OUTPUT_SIZES.map((sz) => {
                 const on = exportSizes.includes(sz.id);
                 return (
-                  <button
-                    key={sz.id}
-                    onClick={() =>
-                      setExportSizes((prev) =>
-                        prev.includes(sz.id) ? prev.filter((x) => x !== sz.id) : [...prev, sz.id],
-                      )
-                    }
-                    className={`rounded-full border px-3 py-1 text-xs ${
-                      on ? "border-orange-500 bg-orange-50 text-orange-700" : "border-zinc-300 text-zinc-500"
-                    }`}
-                  >
-                    {sz.label} ({sz.w}×{sz.h})
+                  <button key={sz.id} onClick={() => setExportSizes((p) => (p.includes(sz.id) ? p.filter((x) => x !== sz.id) : [...p, sz.id]))} style={{ ...chip, ...(on ? chipOn : {}) }}>
+                    {sz.label} · {sz.fmt.toUpperCase()}
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={handleExport}
-              disabled={exporting || exportSizes.length === 0}
-              className="w-full rounded-lg bg-orange-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {exporting ? "이미지 생성 중..." : `이미지 변환하기 (${exportSizes.length}장 다운로드)`}
+            <p style={{ fontSize: 11, color: "#a1a1aa", margin: "0 0 10px" }}>A4는 인쇄용 JPG(고화질), 팝업·인스타는 웹용 PNG로 저장됩니다.</p>
+            <button onClick={handleExport} disabled={exporting || exportSizes.length === 0} style={{ ...primaryBtn, opacity: exporting || exportSizes.length === 0 ? 0.5 : 1 }}>
+              {exporting ? "이미지 생성 중..." : `이미지 변환하기 (${exportSizes.length}장)`}
             </button>
           </section>
         </div>
 
-        {/* ===== 미리보기 ===== */}
-        <div className="lg:sticky lg:top-4">
-          <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-semibold">미리보기</span>
-              <select
-                value={previewSize}
-                onChange={(e) => setPreviewSize(e.target.value as OutputSize)}
-                className="rounded border border-zinc-300 p-1 text-xs"
-              >
+        {/* 미리보기 */}
+        <div style={{ position: "sticky", top: 16 }}>
+          <div style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <span style={lbl}>미리보기</span>
+              <select value={previewSize} onChange={(e) => setPreviewSize(e.target.value as OutputSize)} style={inpSm}>
                 {OUTPUT_SIZES.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
@@ -422,26 +253,33 @@ export default function NoticeGeneratorPage() {
                 ))}
               </select>
             </div>
-            <div
-              className="mx-auto overflow-hidden border border-zinc-100"
-              style={{ width: previewSpec.w * previewScale, height: previewSpec.h * previewScale }}
-            >
-              <div style={{ transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-                <NoticePoster variant={previewSize} state={state} weeks={includedRows} />
+            <div style={{ width: preview.w * scale, height: preview.h * scale, overflow: "hidden", border: "1px solid #eee", margin: "0 auto" }}>
+              <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
+                <NoticePoster variant={previewSize} state={state} />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 내보내기용 숨김 포스터 (선택된 사이즈만 네이티브 해상도로 렌더) */}
+      {/* 숨김 내보내기 노드 */}
       <div style={{ position: "fixed", left: -100000, top: 0, pointerEvents: "none" }} aria-hidden>
         {exportSizes.map((sz) => (
           <div key={sz} ref={(el) => { posterRefs.current[sz] = el; }}>
-            <NoticePoster variant={sz} state={state} weeks={includedRows} />
+            <NoticePoster variant={sz} state={state} />
           </div>
         ))}
       </div>
     </div>
   );
 }
+
+const card: React.CSSProperties = { background: "#fff", border: "1px solid #e4e4e7", borderRadius: 10, padding: 16 };
+const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 600 };
+const inp: React.CSSProperties = { width: "100%", boxSizing: "border-box", border: "1px solid #d4d4d8", borderRadius: 6, padding: 8, fontSize: 14 };
+const inpSm: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 6, padding: 4, fontSize: 12 };
+const navBtn: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 6, padding: "2px 8px", background: "#fff", cursor: "pointer" };
+const chip: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 999, padding: "5px 12px", fontSize: 12, background: "#fff", cursor: "pointer", color: "#71717a" };
+const chipOn: React.CSSProperties = { border: "1px solid #E9531F", background: "#fff7ed", color: "#c2410c" };
+const primaryBtn: React.CSSProperties = { width: "100%", background: "#E9531F", color: "#fff", border: 0, borderRadius: 8, padding: "10px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" };
+const pillLbl: React.CSSProperties = { borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 600 };

@@ -49,6 +49,19 @@
   font-display: swap;
   src: url("./assets/fonts/BroshockBody-Regular.woff2") format("woff2");
 }
+@font-face {
+  font-family: "Optima";
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/Optima-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optima";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Optima-Italic.woff2") format("woff2");
+}
 
 body {
   margin: 0;
