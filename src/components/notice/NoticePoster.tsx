@@ -186,7 +186,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
 
       {/* N월 진료 안내 */}
       <div style={{ position: "absolute", left: spec.month.l * W, top: spec.month.t * H, whiteSpace: "nowrap", display: "flex", alignItems: "baseline", gap: px(0.006) }}>
-        <span style={{ fontSize: px(spec.month.font) * 1.12, fontWeight: 800 }}>{state.month}월</span>
+        <span style={{ fontSize: px(spec.month.font) * 1.1, fontWeight: 700 }}>{state.month}월</span>
         <span style={{ fontSize: px(spec.month.font), fontWeight: 500 }}>진료 안내</span>
       </div>
 
