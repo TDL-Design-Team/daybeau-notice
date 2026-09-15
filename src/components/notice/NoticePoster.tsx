@@ -219,7 +219,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
                 const left = cx1 - circleD / 2;
                 const width = cx2 - cx1 + circleD;
                 return (
-                  <div key={i} style={{ position: "absolute", left, top: (dateRowH - circleD) / 2, width, height: circleD, borderRadius: circleD, border: `${Math.max(2, px(0.0016))}px solid ${s.stroke}`, background: s.fill, boxSizing: "border-box" }} />
+                  <div key={i} style={{ position: "absolute", left, top: (dateRowH - circleD) / 2, width, height: circleD, borderRadius: circleD, border: `${Math.max(1, px(0.0011))}px solid ${s.stroke}`, background: s.fill, boxSizing: "border-box" }} />
                 );
               })}
               {/* 날짜 숫자 */}
@@ -262,7 +262,7 @@ function statusPill(status: DayStatus, fontSize: number, wrap = false) {
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-        border: `${Math.max(1.5, fontSize * 0.09)}px solid ${s.stroke}`,
+        border: `${Math.max(1, fontSize * 0.06)}px solid ${s.stroke}`,
         background: s.fill,
         color: s.text === "#ffffff" ? "#ffffff" : s.stroke,
         borderRadius: 999,
@@ -289,7 +289,7 @@ function BottomBox({ spec, W, H, px, state }: { spec: VariantSpec["bottom"]; W: 
   // 한 줄에 [상태] 날짜 · 시간 (가로 배치). 위아래 패딩 동일.
   const rowGap = px(0.014);
   return (
-    <div style={{ position: "absolute", left: spec.l * W, top: spec.t * H, width: spec.w * W, height: spec.h * H, border: `${Math.max(2, px(0.0013))}px solid ${ORANGE}`, borderRadius: px(0.004), boxSizing: "border-box", padding: `${px(0.02)}px ${px(0.03)}px`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: rowGap, overflow: "hidden" }}>
+    <div style={{ position: "absolute", left: spec.l * W, top: spec.t * H, width: spec.w * W, height: spec.h * H, border: `${Math.max(1, px(0.0009))}px solid ${ORANGE}`, borderRadius: px(0.004), boxSizing: "border-box", padding: `${px(0.02)}px ${px(0.03)}px`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: rowGap, overflow: "hidden" }}>
       {blocks.length === 0 && <span style={{ color: "#bbb", fontSize: px(spec.dateFont) }}>날짜를 선택하세요</span>}
       {blocks.map((st) => {
         const dates = Object.keys(state.dayStatus).filter((iso) => state.dayStatus[iso] === st);
