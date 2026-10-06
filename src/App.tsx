@@ -114,7 +114,9 @@ export default function App() {
         const node = posterRefs.current[sz];
         if (!node) continue;
         const size = OUTPUT_SIZES.find((s) => s.id === sz)!;
-        const common = { width: size.w, height: size.h, pixelRatio: 1, cacheBust: true };
+        // 팝업(PNG)은 작아서 화질 저하 → 고해상도로 렌더(MO는 특히 작아 3배).
+        const ratioMap: Record<string, number> = { a4: 1, insta: 2, pc: 2, mo: 3 };
+        const common = { width: size.w, height: size.h, pixelRatio: ratioMap[sz] ?? 1, cacheBust: true };
         const dataUrl =
           size.fmt === "jpg"
             ? await htmlToImage.toJpeg(node, { ...common, quality: 0.9, backgroundColor: "#ffffff" })
