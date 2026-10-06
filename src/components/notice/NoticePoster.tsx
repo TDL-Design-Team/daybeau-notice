@@ -97,8 +97,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     octT: 0.35,
     notT: 0.49,
     month: { l: 0.088, t: 0.66, font: 0.06 },
-    cal: { l: 0.4, t: 0.25, w: 0.53, wdFont: 0.03, dateFont: 0.058, circle: 0.08, rowGap: 0.02, labelFont: 0.024 },
-    bottom: { l: 0.406, t: 0.66, w: 0.521, h: 0.26, pillFont: 0.024, dateFont: 0.025, timeFont: 0.022 },
+    cal: { l: 0.4, t: 0.34, w: 0.53, wdFont: 0.03, dateFont: 0.058, circle: 0.08, rowGap: 0.02, labelFont: 0.024 },
+    bottom: { l: 0.406, t: 0.75, w: 0.521, h: 0.17, pillFont: 0.024, dateFont: 0.025, timeFont: 0.022 },
   },
 };
 
