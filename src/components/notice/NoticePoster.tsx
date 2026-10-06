@@ -124,6 +124,22 @@ function runsInRow(row: DayCell[], dayStatus: Record<string, DayStatus>): Run[] 
   return runs;
 }
 
+// Optima 글자의 '폰트크기 대비 전체 폭' 비율 측정 (canvas measureText). 폰트 미로딩/환경 미지원 시 null.
+let _measureCtx: CanvasRenderingContext2D | null | undefined;
+function optimaWidthPerEm(text: string): number | null {
+  try {
+    if (_measureCtx === undefined) {
+      _measureCtx = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+    }
+    if (!_measureCtx) return null;
+    _measureCtx.font = "500 100px Optima, serif";
+    const w = _measureCtx.measureText(text).width / 100;
+    return w > 0 ? w : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function NoticePoster({ variant, state }: { variant: OutputSize; state: NoticeState }) {
   const size = OUTPUT_SIZES.find((s) => s.id === variant)!;
   const W = size.w;
@@ -156,11 +172,12 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
   const usedCalH = header + perRow(dateRowH) * nRows;
   const calTopOffset = Math.max(0, (areaH - usedCalH) / 2); // 적으면 세로 중앙
 
-  // 영문 월 이름이 길면(September 등) 오른쪽 요소와 겹치지 않게 타이틀 자동 축소.
-  // October/NOTICE 동일 크기 유지.
+  // 영문 월 이름이 길면(November/December 등) 오른쪽 '진료 안내'와 겹치지 않게 타이틀 자동 축소.
+  // Optima 실제 렌더 폭을 측정해 정확히 맞춤(측정 실패 시 추정치 사용). October/NOTICE 동일 크기 유지.
   const monthName = MONTH_ENG[state.month - 1];
-  const availTitleW = (spec.titleRight - spec.titleL) * W;
-  const titleFont = Math.min(px(spec.octFont), availTitleW / (Math.max(monthName.length, 6) * 0.56));
+  const availTitleW = (spec.titleRight - spec.titleL) * W * 0.97; // 소폭 여유
+  const wPerEm = optimaWidthPerEm(monthName) ?? Math.max(monthName.length, 6) * 0.56;
+  const titleFont = Math.min(px(spec.octFont), availTitleW / wPerEm);
 
   const root: CSSProperties = {
     position: "relative",
