@@ -59,8 +59,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     octT: 0.203,
     notT: 0.283,
     month: { l: 0.535, t: 0.223, font: 0.031 },
-    cal: { l: 0.108, t: 0.44, w: 0.776, wdFont: 0.016, dateFont: 0.036, circle: 0.088, rowGap: 0.015, labelFont: 0.0135 },
-    bottom: { l: 0.108, t: 0.76, w: 0.784, h: 0.14, pillFont: 0.014, dateFont: 0.015, timeFont: 0.013 },
+    cal: { l: 0.108, t: 0.44, w: 0.776, wdFont: 0.016, dateFont: 0.036, circle: 0.1, rowGap: 0.015, labelFont: 0.0135 },
+    bottom: { l: 0.108, t: 0.75, w: 0.784, h: 0.16, pillFont: 0.014, dateFont: 0.015, timeFont: 0.013 },
   },
   insta: {
     bg: bgInsta,
@@ -160,13 +160,14 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
   const nRows = Math.max(1, rows.length);
   const labelSpace = hideLabels ? 0 : labelH;
   const idealRowH = spec.cal.circle * W * 1.05;
-  const perRow = (rh: number) => rh * 1.4 + labelSpace; // 행+간격+라벨
+  const ROW_PITCH = 1.26; // 행높이 대비 간격 포함 피치 (작을수록 주차 간격 좁음)
+  const perRow = (rh: number) => rh * ROW_PITCH + labelSpace; // 행+간격+라벨
   let dateRowH = idealRowH;
   if (header + perRow(idealRowH) * nRows > areaH) {
-    dateRowH = Math.max(px(0.02), (areaH - header) / nRows / 1.4 - labelSpace / 1.4);
+    dateRowH = Math.max(px(0.02), (areaH - header) / nRows / ROW_PITCH - labelSpace / ROW_PITCH);
   }
-  const rowGap = dateRowH * 0.4;
-  const circleD = Math.min(spec.cal.circle * W, dateRowH * 0.92, cellW * 0.92);
+  const rowGap = dateRowH * (ROW_PITCH - 1); // 주차 간 세로 간격
+  const circleD = Math.min(spec.cal.circle * W, dateRowH * 0.98, cellW * 0.96);
   const calScale = circleD / (spec.cal.circle * W);
   const dateFont = px(spec.cal.dateFont) * calScale;
   const usedCalH = header + perRow(dateRowH) * nRows;
