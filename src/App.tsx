@@ -40,6 +40,8 @@ export default function App() {
       extraText: "",
       visibleWeekdays: [0, 1, 2, 3, 4, 5, 6],
       dateScale: 1,
+      weekdayScale: 1,
+      statusLabelScale: 1,
       bottomScale: 1,
       offsets: { title: 0, calendar: 0, bottom: 0 },
     };
@@ -144,10 +146,12 @@ export default function App() {
 
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   const bumpDateScale = (d: number) => setState((s) => ({ ...s, dateScale: clamp(+((s.dateScale ?? 1) + d).toFixed(2), 0.6, 1.8) }));
+  const bumpWeekdayScale = (d: number) => setState((s) => ({ ...s, weekdayScale: clamp(+((s.weekdayScale ?? 1) + d).toFixed(2), 0.6, 1.8) }));
+  const bumpStatusLabelScale = (d: number) => setState((s) => ({ ...s, statusLabelScale: clamp(+((s.statusLabelScale ?? 1) + d).toFixed(2), 0.6, 1.8) }));
   const bumpBottomScale = (d: number) => setState((s) => ({ ...s, bottomScale: clamp(+((s.bottomScale ?? 1) + d).toFixed(2), 0.6, 1.8) }));
   const nudge = (key: "title" | "calendar" | "bottom", d: number) =>
     setState((s) => ({ ...s, offsets: { ...s.offsets, [key]: clamp(+(((s.offsets?.[key] ?? 0) + d).toFixed(3)), -0.25, 0.25) } }));
-  const resetLayout = () => setState((s) => ({ ...s, dateScale: 1, bottomScale: 1, offsets: { title: 0, calendar: 0, bottom: 0 } }));
+  const resetLayout = () => setState((s) => ({ ...s, dateScale: 1, weekdayScale: 1, statusLabelScale: 1, bottomScale: 1, offsets: { title: 0, calendar: 0, bottom: 0 } }));
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f5", color: "#18181b" }}>
@@ -318,16 +322,24 @@ export default function App() {
               <button onClick={resetLayout} style={{ ...chip, padding: "3px 10px" }}>초기화</button>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ fontSize: 13 }}>날짜 크기</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button onClick={() => bumpDateScale(-0.05)} style={stepBtn}>−</button>
-                <span style={{ fontSize: 12, width: 40, textAlign: "center" }}>{Math.round((state.dateScale ?? 1) * 100)}%</span>
-                <button onClick={() => bumpDateScale(0.05)} style={stepBtn}>＋</button>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 4px" }}><b>크기 조절</b></p>
+            {([
+              ["날짜 크기", state.dateScale ?? 1, bumpDateScale],
+              ["요일 크기", state.weekdayScale ?? 1, bumpWeekdayScale],
+              ["상태 버튼 크기", state.statusLabelScale ?? 1, bumpStatusLabelScale],
+              ["하단 안내문구 크기", state.bottomScale ?? 1, bumpBottomScale],
+            ] as const).map(([label, val, bump]) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" }}>
+                <span style={{ fontSize: 13 }}>{label}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => bump(-0.05)} style={stepBtn}>−</button>
+                  <span style={{ fontSize: 12, width: 40, textAlign: "center" }}>{Math.round(val * 100)}%</span>
+                  <button onClick={() => bump(0.05)} style={stepBtn}>＋</button>
+                </div>
               </div>
-            </div>
+            ))}
 
-            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 8px" }}>섹션 <b>위·아래 이동</b> (여백 조절)</p>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "12px 0 8px" }}>섹션 <b>위·아래 이동</b> (여백 조절)</p>
             {([
               ["title", "① 타이틀 (영문·월)"],
               ["calendar", "② 날짜 달력"],

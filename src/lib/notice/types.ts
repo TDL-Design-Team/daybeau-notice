@@ -36,6 +36,8 @@ export type NoticeState = {
   extraText: string;
   visibleWeekdays: number[]; // 달력에 표시할 요일 (0=일 ~ 6=토), 오름차순
   dateScale: number; // 달력 날짜 크기 배율 (기본 1)
+  weekdayScale: number; // 요일(일~토) 크기 배율 (기본 1)
+  statusLabelScale: number; // 날짜 아래 상태 pill(휴진/단축/정상) 크기 배율 (기본 1)
   bottomScale: number; // 하단 안내문구 글씨 크기 배율 (기본 1)
   offsets: { title: number; calendar: number; bottom: number }; // 섹션별 세로 이동(H 비율, 기본 0)
 };

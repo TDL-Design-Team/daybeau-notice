@@ -170,10 +170,14 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
   const visCols = (state.visibleWeekdays?.length ? [...state.visibleWeekdays] : [0, 1, 2, 3, 4, 5, 6]).sort((a, b) => a - b);
   const nCols = visCols.length;
   const cellW = (spec.cal.w * W) / nCols;
-  const labelH = px(spec.cal.labelFont) * (variant === "mo" ? 2.6 : 1.9);
+  const wdScale = state.weekdayScale ?? 1; // 요일 크기 배율
+  const slScale = state.statusLabelScale ?? 1; // 상태 pill 크기 배율
+  const wdFont = px(spec.cal.wdFont) * wdScale;
+  const labelFontPx = px(spec.cal.labelFont) * slScale;
+  const labelH = labelFontPx * (variant === "mo" ? 2.6 : 1.9);
   // 반응형: 달력(요일헤더~마지막 행)이 [cal.t, bottom.t] 영역에 들어가되,
   // 주차가 적으면 이상적 크기로 크게 + 세로 중앙, 많으면 영역에 맞게 축소.
-  const header = px(spec.cal.wdFont) * 1.7;
+  const header = wdFont * 1.7;
   const areaH = (spec.bottom.t - spec.cal.t) * H - px(0.02); // 달력 배치 가능 총 높이
   const nRows = Math.max(1, rows.length);
   const labelSpace = hideLabels ? 0 : labelH;
@@ -244,7 +248,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
         {/* 요일 헤더 (7:일~토 / 5:월~금) */}
         <div style={{ display: "flex", marginBottom: px(0.008) }}>
           {visCols.map((c) => (
-            <div key={c} style={{ width: cellW, textAlign: "center", fontSize: px(spec.cal.wdFont), fontWeight: 500, color: GRAY }}>
+            <div key={c} style={{ width: cellW, textAlign: "center", fontSize: wdFont, fontWeight: 500, color: GRAY }}>
               {KO_WD[c]}
             </div>
           ))}
@@ -282,7 +286,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
                   const cx = ((run.start + run.end) / 2 + 0.5) * cellW;
                   return (
                     <div key={`l${i}`} style={{ position: "absolute", left: cx, top: dateRowH + px(0.004), transform: "translateX(-50%)" }}>
-                      {statusPill(run.status, px(spec.cal.labelFont), variant === "mo")}
+                      {statusPill(run.status, labelFontPx, variant === "mo")}
                     </div>
                   );
                 })}
