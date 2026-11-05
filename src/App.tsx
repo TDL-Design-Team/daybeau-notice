@@ -48,6 +48,7 @@ export default function App() {
   });
   const [mode, setMode] = useState<PaintMode>("closed");
   const [previewSize, setPreviewSize] = useState<OutputSize>("a4");
+  const [showGuides, setShowGuides] = useState(false); // 미리보기 중심 가이드선(추출 안 됨)
   const [exportSizes, setExportSizes] = useState<OutputSize[]>(["a4"]);
   const [exporting, setExporting] = useState(false);
   const posterRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -385,11 +386,22 @@ export default function App() {
                 ))}
               </select>
             </div>
-            <div style={{ width: preview.w * scale, height: preview.h * scale, overflow: "hidden", border: "1px solid #eee", margin: "0 auto" }}>
+            <div style={{ position: "relative", width: preview.w * scale, height: preview.h * scale, overflow: "hidden", border: "1px solid #eee", margin: "0 auto" }}>
               <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
                 <NoticePoster variant={previewSize} state={state} />
               </div>
+              {showGuides && (
+                <>
+                  {/* 중심 가이드선 (미리보기 전용 · 이미지 추출에는 포함되지 않음) */}
+                  <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "rgba(0,160,255,0.7)", transform: "translateX(-0.5px)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", top: "50%", left: 0, height: 1, width: "100%", background: "rgba(0,160,255,0.7)", transform: "translateY(-0.5px)", pointerEvents: "none" }} />
+                </>
+              )}
             </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", marginTop: 10, fontSize: 12, color: "#52525b", cursor: "pointer" }}>
+              <input type="checkbox" checked={showGuides} onChange={(e) => setShowGuides(e.target.checked)} />
+              중심 가이드선 표시 <span style={{ color: "#a1a1aa" }}>(이미지에는 포함 안 됨)</span>
+            </label>
           </div>
         </div>
       </div>
