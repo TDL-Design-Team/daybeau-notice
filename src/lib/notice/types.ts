@@ -34,7 +34,10 @@ export type NoticeState = {
   dayStatus: Record<string, DayStatus>; // iso -> status
   statusConfig: Record<DayStatus, StatusConfig>; // 하단 문구 상태별 설정
   extraText: string;
-  daysMode: 7 | 5; // 달력 요일 표기: 7(일~토) / 5(월~금)
+  visibleWeekdays: number[]; // 달력에 표시할 요일 (0=일 ~ 6=토), 오름차순
+  dateScale: number; // 달력 날짜 크기 배율 (기본 1)
+  bottomScale: number; // 하단 안내문구 글씨 크기 배율 (기본 1)
+  offsets: { title: number; calendar: number; bottom: number }; // 섹션별 세로 이동(H 비율, 기본 0)
 };
 
 export function defaultStatusConfig(): Record<DayStatus, StatusConfig> {

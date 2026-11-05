@@ -38,7 +38,10 @@ export default function App() {
       dayStatus: {},
       statusConfig: defaultStatusConfig(),
       extraText: "",
-      daysMode: 7,
+      visibleWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      dateScale: 1,
+      bottomScale: 1,
+      offsets: { title: 0, calendar: 0, bottom: 0 },
     };
   });
   const [mode, setMode] = useState<PaintMode>("closed");
@@ -137,7 +140,14 @@ export default function App() {
   }
 
   const preview = OUTPUT_SIZES.find((s) => s.id === previewSize)!;
-  const scale = Math.min(460 / preview.w, 620 / preview.h);
+  const scale = Math.min(620 / preview.w, 840 / preview.h);
+
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const bumpDateScale = (d: number) => setState((s) => ({ ...s, dateScale: clamp(+((s.dateScale ?? 1) + d).toFixed(2), 0.6, 1.8) }));
+  const bumpBottomScale = (d: number) => setState((s) => ({ ...s, bottomScale: clamp(+((s.bottomScale ?? 1) + d).toFixed(2), 0.6, 1.8) }));
+  const nudge = (key: "title" | "calendar" | "bottom", d: number) =>
+    setState((s) => ({ ...s, offsets: { ...s.offsets, [key]: clamp(+(((s.offsets?.[key] ?? 0) + d).toFixed(3)), -0.25, 0.25) } }));
+  const resetLayout = () => setState((s) => ({ ...s, dateScale: 1, bottomScale: 1, offsets: { title: 0, calendar: 0, bottom: 0 } }));
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f5", color: "#18181b" }}>
@@ -145,7 +155,7 @@ export default function App() {
         ⚠️ 이 페이지는 입력 내용을 <b>저장하지 않습니다</b>. 새로고침·창닫기 시 모두 사라지니 완성되면 <b>이미지로 꼭 다운로드</b>하세요.
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 24, padding: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", gap: 24, padding: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 16 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>진료 안내 이미지 생성기</h1>
 
@@ -179,18 +189,36 @@ export default function App() {
                 );
               })}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>요일 표기</span>
+          </section>
+
+          <section style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <label style={lbl}>요일 표기</label>
               <div style={{ display: "flex", gap: 6 }}>
-                {([7, 5] as const).map((d) => {
-                  const on = state.daysMode === d;
-                  return (
-                    <button key={d} onClick={() => setState((s) => ({ ...s, daysMode: d }))} style={{ ...chip, ...(on ? chipOn : {}) }}>
-                      {d === 7 ? "7일 (일~토)" : "5일 (월~금)"}
-                    </button>
-                  );
-                })}
+                <button onClick={() => setState((s) => ({ ...s, visibleWeekdays: [0, 1, 2, 3, 4, 5, 6] }))} style={{ ...chip, padding: "3px 10px" }}>전체</button>
+                <button onClick={() => setState((s) => ({ ...s, visibleWeekdays: [1, 2, 3, 4, 5] }))} style={{ ...chip, padding: "3px 10px" }}>평일</button>
               </div>
+            </div>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 8px" }}>달력에 <b>표시할 요일</b>을 켜고 끄세요.</p>
+            <div style={{ display: "flex", gap: 4 }}>
+              {KO_WD.map((wd, i) => {
+                const on = state.visibleWeekdays.includes(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() =>
+                      setState((s) => {
+                        const has = s.visibleWeekdays.includes(i);
+                        const next = has ? s.visibleWeekdays.filter((x) => x !== i) : [...s.visibleWeekdays, i].sort((a, b) => a - b);
+                        return next.length ? { ...s, visibleWeekdays: next } : s; // 최소 1개 유지
+                      })
+                    }
+                    style={{ flex: 1, borderRadius: 8, padding: "7px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", border: on ? "1px solid #E9531F" : "1px solid #d4d4d8", background: on ? "#fff7ed" : "#fff", color: on ? "#c2410c" : "#a1a1aa" }}
+                  >
+                    {wd}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -247,7 +275,15 @@ export default function App() {
           </section>
 
           <section style={card}>
-            <label style={lbl}>하단 안내 문구</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label style={lbl}>하단 안내 문구</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: "#71717a" }}>글씨 크기</span>
+                <button onClick={() => bumpBottomScale(-0.05)} style={stepBtn}>−</button>
+                <span style={{ fontSize: 12, width: 40, textAlign: "center" }}>{Math.round((state.bottomScale ?? 1) * 100)}%</span>
+                <button onClick={() => bumpBottomScale(0.05)} style={stepBtn}>＋</button>
+              </div>
+            </div>
             <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 10px" }}>위에서 지정한 날짜가 자동으로 들어갑니다. 표시 여부와 시간만 설정하세요.</p>
             {STATUS_ORDER.map((st) => {
               const dates = [...includedIsos].filter((iso) => state.dayStatus[iso] === st);
@@ -274,6 +310,38 @@ export default function App() {
               <label style={{ fontSize: 12, fontWeight: 600, color: "#52525b" }}>기타 문구 (선택, 작게 표시)</label>
               <textarea value={state.extraText} onChange={(e) => onExtra(e.target.value)} rows={2} style={{ ...inp, marginTop: 4 }} placeholder="추가 안내 문구" />
             </div>
+          </section>
+
+          <section style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={lbl}>레이아웃 조정</label>
+              <button onClick={resetLayout} style={{ ...chip, padding: "3px 10px" }}>초기화</button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 13 }}>날짜 크기</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button onClick={() => bumpDateScale(-0.05)} style={stepBtn}>−</button>
+                <span style={{ fontSize: 12, width: 40, textAlign: "center" }}>{Math.round((state.dateScale ?? 1) * 100)}%</span>
+                <button onClick={() => bumpDateScale(0.05)} style={stepBtn}>＋</button>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 8px" }}>섹션 <b>위·아래 이동</b> (여백 조절)</p>
+            {([
+              ["title", "① 타이틀 (영문·월)"],
+              ["calendar", "② 날짜 달력"],
+              ["bottom", "③ 하단 안내문구"],
+            ] as const).map(([key, label]) => (
+              <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+                <span style={{ fontSize: 13 }}>{label}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => nudge(key, -0.01)} style={stepBtn}>▲</button>
+                  <span style={{ fontSize: 11, color: "#a1a1aa", width: 44, textAlign: "center" }}>{Math.round((state.offsets?.[key] ?? 0) * 1000)}</span>
+                  <button onClick={() => nudge(key, 0.01)} style={stepBtn}>▼</button>
+                </div>
+              </div>
+            ))}
           </section>
 
           <section style={card}>
@@ -334,3 +402,4 @@ const chip: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 9
 const chipOn: React.CSSProperties = { border: "1px solid #E9531F", background: "#fff7ed", color: "#c2410c" };
 const primaryBtn: React.CSSProperties = { width: "100%", background: "#E9531F", color: "#fff", border: 0, borderRadius: 8, padding: "10px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" };
 const pillLbl: React.CSSProperties = { borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 600 };
+const stepBtn: React.CSSProperties = { width: 28, height: 28, borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", cursor: "pointer", fontSize: 14, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#52525b" };
