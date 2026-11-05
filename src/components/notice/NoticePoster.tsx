@@ -111,7 +111,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     titleL: 0.089, titleRight: 0.34,
     octT: 0.35,
     notT: 0.49,
-    month: { l: 0.088, t: 0.66, font: 0.06 },
+    month: { l: 0.088, t: 0.66, font: 0.046 },
     cal: { l: 0.4, t: 0.34, w: 0.53, wdFont: 0.03, dateFont: 0.058, circle: 0.08, rowGap: 0.02, labelFont: 0.024 },
     bottom: { l: 0.406, t: 0.75, w: 0.521, h: 0.17, pillFont: 0.024, dateFont: 0.025, timeFont: 0.022 },
   },
@@ -253,8 +253,8 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
         NOTICE
       </div>
 
-      {/* N월 진료 안내 */}
-      <div style={{ position: "absolute", left: spec.month.l * W, top: spec.month.t * H + titleDY, whiteSpace: "nowrap", display: "flex", alignItems: "baseline", gap: px(0.006) }}>
+      {/* N월 진료 안내 — 자막이 있는 변형은 자막 오른쪽 끝에 우측정렬, 없으면 기존 left 기준 */}
+      <div style={{ position: "absolute", ...(spec.subtitle ? { right: (1 - spec.subtitle.right) * W } : { left: spec.month.l * W }), top: spec.month.t * H + titleDY, whiteSpace: "nowrap", display: "flex", alignItems: "baseline", gap: px(0.006) }}>
         <span style={{ fontSize: px(spec.month.font) * 1.1, fontWeight: 700 }}>{state.month}월</span>
         <span style={{ fontSize: px(spec.month.font), fontWeight: 500 }}>진료 안내</span>
       </div>
