@@ -257,17 +257,29 @@ export default function App() {
             {weeks.map((wk, wi) => {
               const weekOn = state.includedWeeks.includes(wi);
               return (
-                <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4, opacity: weekOn ? 1 : 0.35 }}>
+                <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
                   {wk.map((cell, ci) => {
                     if (!cell.inMonth) return <div key={ci} />;
                     const stt = state.dayStatus[cell.iso];
+                    const weekdayOn = state.visibleWeekdays.includes(ci);
+                    const disabled = !weekOn || !weekdayOn;
+                    const onClickCell = () => {
+                      if (!weekdayOn) { alert("이 요일은 지금 달력에 표시되지 않아요.\n위 '요일 표기'에서 해당 요일을 먼저 켜 주세요."); return; }
+                      if (!weekOn) { alert("이 주차는 지금 이미지에 포함되지 않아요.\n위 '월 / 주차 선택'에서 해당 주차를 먼저 선택해 주세요."); return; }
+                      paintDay(cell.iso, wi);
+                    };
                     return (
                       <button
                         key={ci}
-                        onClick={() => paintDay(cell.iso, wi)}
+                        onClick={onClickCell}
+                        title={disabled ? (!weekdayOn ? "표시되지 않는 요일" : "선택되지 않은 주차") : undefined}
                         style={{
-                          aspectRatio: "1", borderRadius: 8, fontSize: 13, cursor: "pointer",
-                          ...(stt ? CTRL_STYLE[stt] : { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }),
+                          aspectRatio: "1", borderRadius: 8, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer",
+                          ...(disabled
+                            ? { background: "#fafafa", color: "#d4d4d8", border: "1px dashed #e9e9ec" }
+                            : stt
+                            ? CTRL_STYLE[stt]
+                            : { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }),
                         }}
                       >
                         {cell.day}
@@ -280,16 +292,8 @@ export default function App() {
           </section>
 
           <section style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label style={lbl}>하단 안내 문구</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12, color: "#71717a" }}>글씨 크기</span>
-                <button onClick={() => bumpBottomScale(-0.05)} style={stepBtn}>−</button>
-                <span style={{ fontSize: 12, width: 40, textAlign: "center" }}>{Math.round((state.bottomScale ?? 1) * 100)}%</span>
-                <button onClick={() => bumpBottomScale(0.05)} style={stepBtn}>＋</button>
-              </div>
-            </div>
-            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 10px" }}>위에서 지정한 날짜가 자동으로 들어갑니다. 표시 여부와 시간만 설정하세요.</p>
+            <label style={lbl}>하단 안내 문구</label>
+            <p style={{ fontSize: 12, color: "#71717a", margin: "4px 0 10px" }}>위에서 지정한 날짜가 자동으로 들어갑니다. 표시 여부와 시간만 설정하세요. (글씨 크기는 아래 '레이아웃 조정'에서)</p>
             {STATUS_ORDER.map((st) => {
               const dates = [...includedIsos].filter((iso) => state.dayStatus[iso] === st);
               const cfg = state.statusConfig[st];
