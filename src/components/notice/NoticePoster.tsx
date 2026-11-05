@@ -151,7 +151,10 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
   const rows: WeekRow[] = allWeeks.filter((_, i) => state.includedWeeks.includes(i));
   const hideLabels = rows.length >= 3; // 3주 이상이면 라벨 숨기고 색표기만
 
-  const cellW = (spec.cal.w * W) / 7;
+  // 요일 표기: 7(일~토) / 5(월~금). 5일이면 일·토 열 제외.
+  const visCols = state.daysMode === 5 ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6];
+  const nCols = visCols.length;
+  const cellW = (spec.cal.w * W) / nCols;
   const labelH = px(spec.cal.labelFont) * (variant === "mo" ? 2.6 : 1.9);
   // 반응형: 달력(요일헤더~마지막 행)이 [cal.t, bottom.t] 영역에 들어가되,
   // 주차가 적으면 이상적 크기로 크게 + 세로 중앙, 많으면 영역에 맞게 축소.
@@ -216,16 +219,17 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
 
       {/* 달력 */}
       <div style={{ position: "absolute", left: spec.cal.l * W, top: spec.cal.t * H + calTopOffset, width: spec.cal.w * W }}>
-        {/* 요일 헤더 (일~토 고정) */}
+        {/* 요일 헤더 (7:일~토 / 5:월~금) */}
         <div style={{ display: "flex", marginBottom: px(0.008) }}>
-          {KO_WD.map((wd, i) => (
-            <div key={i} style={{ width: cellW, textAlign: "center", fontSize: px(spec.cal.wdFont), fontWeight: 500, color: GRAY }}>
-              {wd}
+          {visCols.map((c) => (
+            <div key={c} style={{ width: cellW, textAlign: "center", fontSize: px(spec.cal.wdFont), fontWeight: 500, color: GRAY }}>
+              {KO_WD[c]}
             </div>
           ))}
         </div>
         {/* 날짜 행들 */}
-        {rows.map((row, ri) => {
+        {rows.map((fullRow, ri) => {
+          const row = visCols.map((c) => fullRow[c]); // 표기 열만
           const runs = runsInRow(row, state.dayStatus);
           return (
             <div key={ri} style={{ position: "relative", height: dateRowH, marginBottom: hideLabels ? rowGap : labelH + rowGap }}>

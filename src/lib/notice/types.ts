@@ -34,6 +34,7 @@ export type NoticeState = {
   dayStatus: Record<string, DayStatus>; // iso -> status
   statusConfig: Record<DayStatus, StatusConfig>; // 하단 문구 상태별 설정
   extraText: string;
+  daysMode: 7 | 5; // 달력 요일 표기: 7(일~토) / 5(월~금)
 };
 
 export function defaultStatusConfig(): Record<DayStatus, StatusConfig> {

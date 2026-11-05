@@ -38,6 +38,7 @@ export default function App() {
       dayStatus: {},
       statusConfig: defaultStatusConfig(),
       extraText: "",
+      daysMode: 7,
     };
   });
   const [mode, setMode] = useState<PaintMode>("closed");
@@ -177,6 +178,19 @@ export default function App() {
                   </button>
                 );
               })}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+              <span style={{ fontSize: 12, color: "#71717a" }}>요일 표기</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                {([7, 5] as const).map((d) => {
+                  const on = state.daysMode === d;
+                  return (
+                    <button key={d} onClick={() => setState((s) => ({ ...s, daysMode: d }))} style={{ ...chip, ...(on ? chipOn : {}) }}>
+                      {d === 7 ? "7일 (일~토)" : "5일 (월~금)"}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
