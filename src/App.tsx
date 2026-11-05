@@ -301,9 +301,9 @@ export default function App() {
                     <span style={{ ...pillLbl, ...CTRL_STYLE[st] }}>{STATUS_LABEL[st]}</span>
                     {st !== "closed" && active && (
                       <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginLeft: "auto" }}>
-                        <input type="time" value={cfg.startTime} onChange={(e) => setCfg(st, { startTime: e.target.value })} style={inpSm} />
+                        <TimeSelect value={cfg.startTime} onChange={(v) => setCfg(st, { startTime: v })} />
                         <span>-</span>
-                        <input type="time" value={cfg.endTime} onChange={(e) => setCfg(st, { endTime: e.target.value })} style={inpSm} />
+                        <TimeSelect value={cfg.endTime} onChange={(v) => setCfg(st, { endTime: v })} />
                       </span>
                     )}
                   </div>
@@ -417,10 +417,30 @@ export default function App() {
   );
 }
 
+// 시간: 입력형식 대신 시(0~23) / 분(00·30) 선택형식
+function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [h = "00", m = "00"] = (value || "00:00").split(":");
+  const minute = m === "30" ? "30" : "00";
+  return (
+    <span style={{ display: "inline-flex", gap: 3 }}>
+      <select value={String(parseInt(h, 10) || 0)} onChange={(e) => onChange(`${String(e.target.value).padStart(2, "0")}:${minute}`)} style={selSm}>
+        {Array.from({ length: 24 }, (_, i) => (
+          <option key={i} value={i}>{i}시</option>
+        ))}
+      </select>
+      <select value={minute} onChange={(e) => onChange(`${String(parseInt(h, 10) || 0).toString().padStart(2, "0")}:${e.target.value}`)} style={selSm}>
+        <option value="00">00분</option>
+        <option value="30">30분</option>
+      </select>
+    </span>
+  );
+}
+
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e4e4e7", borderRadius: 10, padding: 16 };
 const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 600 };
 const inp: React.CSSProperties = { width: "100%", boxSizing: "border-box", border: "1px solid #d4d4d8", borderRadius: 6, padding: 8, fontSize: 14 };
 const inpSm: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 6, padding: 4, fontSize: 12 };
+const selSm: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 6, padding: "4px 6px", fontSize: 12, background: "#fff", cursor: "pointer" };
 const navBtn: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 6, padding: "2px 8px", background: "#fff", cursor: "pointer" };
 const chip: React.CSSProperties = { border: "1px solid #d4d4d8", borderRadius: 999, padding: "5px 12px", fontSize: 12, background: "#fff", cursor: "pointer", color: "#71717a" };
 const chipOn: React.CSSProperties = { border: "1px solid #E9531F", background: "#fff7ed", color: "#c2410c" };
