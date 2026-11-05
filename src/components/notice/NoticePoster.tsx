@@ -47,7 +47,15 @@ type VariantSpec = {
   month: { l: number; t: number; font: number };
   cal: { l: number; t: number; w: number; wdFont: number; dateFont: number; circle: number; rowGap: number; labelFont: number };
   bottom: Rect & { pillFont: number; dateFont: number; timeFont: number };
+  // 섹션1 오버레이(자막/구분선) — 포트레이트(a4/insta/mo)만. 없으면 렌더 안 함.
+  subtitle?: { right: number; top: number; font: number; lineHeight: number; align: "right" | "left" };
+  divider?: { x0: number; x1: number; y: number; thick: number };
 };
+
+// 상단 자막(고정 문구)
+const SUBTITLE_LINES = ["진료시간 안내드립니다.", "예약 및 내원 시 참고 부탁드리며", "착오 없으시길 바랍니다."];
+const SUBTITLE_COLOR = "#564E4C";
+const DIVIDER_COLOR = "#FF6E14";
 
 const SPECS: Record<OutputSize, VariantSpec> = {
   a4: {
@@ -62,6 +70,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     month: { l: 0.535, t: 0.223, font: 0.031 },
     cal: { l: 0.108, t: 0.44, w: 0.776, wdFont: 0.016, dateFont: 0.036, circle: 0.1, rowGap: 0.015, labelFont: 0.0135 },
     bottom: { l: 0.108, t: 0.75, w: 0.784, h: 0.16, pillFont: 0.014, dateFont: 0.015, timeFont: 0.013 },
+    subtitle: { right: 0.855, top: 0.272, font: 0.0162, lineHeight: 1.55, align: "right" },
+    divider: { x0: 0.108, x1: 0.892, y: 0.4025, thick: 0.0014 },
   },
   insta: {
     bg: bgInsta,
@@ -74,6 +84,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     month: { l: 0.612, t: 0.262, font: 0.033 },
     cal: { l: 0.12, t: 0.505, w: 0.76, wdFont: 0.018, dateFont: 0.038, circle: 0.094, rowGap: 0.016, labelFont: 0.014 },
     bottom: { l: 0.121, t: 0.77, w: 0.758, h: 0.14, pillFont: 0.015, dateFont: 0.016, timeFont: 0.014 },
+    subtitle: { right: 0.858, top: 0.318, font: 0.0195, lineHeight: 1.55, align: "right" },
+    divider: { x0: 0.124, x1: 0.876, y: 0.4696, thick: 0.0015 },
   },
   mo: {
     bg: bgMo,
@@ -87,6 +99,8 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     month: { l: 0.52, t: 0.243, font: 0.028 },
     cal: { l: 0.11, t: 0.465, w: 0.78, wdFont: 0.024, dateFont: 0.048, circle: 0.11, rowGap: 0.018, labelFont: 0.017 },
     bottom: { l: 0.1, t: 0.73, w: 0.8, h: 0.15, pillFont: 0.016, dateFont: 0.017, timeFont: 0.015 },
+    subtitle: { right: 0.856, top: 0.286, font: 0.021, lineHeight: 1.5, align: "right" },
+    divider: { x0: 0.10, x1: 0.90, y: 0.4185, thick: 0.0022 },
   },
   pc: {
     bg: bgPc,
@@ -182,7 +196,9 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
   const nRows = Math.max(1, rows.length);
   const labelSpace = hideLabels ? 0 : labelH;
   const dScale = state.dateScale ?? 1; // 날짜 크기 사용자 배율
-  const baseCircle = spec.cal.circle * W * dScale;
+  // 원(강조 도형)은 배율의 50%만 반영해 과도하게 커지지 않도록, 숫자는 배율 전체 반영.
+  const circleScale = 1 + (dScale - 1) * 0.5;
+  const baseCircle = spec.cal.circle * W * circleScale;
   const idealRowH = baseCircle * 1.05;
   const ROW_PITCH = 1.26; // 행높이 대비 간격 포함 피치 (작을수록 주차 간격 좁음)
   const perRow = (rh: number) => rh * ROW_PITCH + labelSpace; // 행+간격+라벨
@@ -243,6 +259,20 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
         <span style={{ fontSize: px(spec.month.font), fontWeight: 500 }}>진료 안내</span>
       </div>
 
+      {/* 상단 자막 (섹션1, titleDY로 함께 이동) */}
+      {spec.subtitle && (
+        <div style={{ position: "absolute", left: 0, top: spec.subtitle.top * H + titleDY, width: spec.subtitle.right * W, textAlign: spec.subtitle.align, fontSize: px(spec.subtitle.font), lineHeight: spec.subtitle.lineHeight, color: SUBTITLE_COLOR, fontWeight: 400 }}>
+          {SUBTITLE_LINES.map((ln, i) => (
+            <div key={i}>{ln}</div>
+          ))}
+        </div>
+      )}
+
+      {/* 구분선 (섹션1, titleDY로 함께 이동) */}
+      {spec.divider && (
+        <div style={{ position: "absolute", left: spec.divider.x0 * W, top: spec.divider.y * H + titleDY, width: (spec.divider.x1 - spec.divider.x0) * W, height: Math.max(1, spec.divider.thick * H), background: DIVIDER_COLOR }} />
+      )}
+
       {/* 달력 */}
       <div style={{ position: "absolute", left: spec.cal.l * W, top: spec.cal.t * H + calTopOffset + calDY, width: spec.cal.w * W }}>
         {/* 요일 헤더 (7:일~토 / 5:월~금) */}
@@ -286,7 +316,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
                   const cx = ((run.start + run.end) / 2 + 0.5) * cellW;
                   return (
                     <div key={`l${i}`} style={{ position: "absolute", left: cx, top: dateRowH + px(0.004), transform: "translateX(-50%)" }}>
-                      {statusPill(run.status, labelFontPx, variant === "mo")}
+                      {statusPill(run.status, labelFontPx, false)}
                     </div>
                   );
                 })}
