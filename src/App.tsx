@@ -51,6 +51,8 @@ export default function App() {
   const [showGuides, setShowGuides] = useState(false); // 미리보기 중심 가이드선(추출 안 됨)
   const [exportSizes, setExportSizes] = useState<OutputSize[]>(["a4"]);
   const [exporting, setExporting] = useState(false);
+  const [savedModal, setSavedModal] = useState(false);
+  const [pathCopied, setPathCopied] = useState(false);
   const posterRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const weeks = useMemo(() => weeksOfMonth(state.year, state.month), [state.year, state.month]);
@@ -128,12 +130,16 @@ export default function App() {
           size.fmt === "jpg"
             ? await htmlToImage.toJpeg(node, { ...common, quality: 0.9, backgroundColor: "#ffffff" })
             : await htmlToImage.toPng(node, common);
+        // 파일명: (년2자리)(월2자리)_지점_N월진료안내_사이즈  예) 2610_명동더프리미엄점_10월진료안내_A4
+        const yymm = `${String(state.year).slice(-2)}${String(state.month).padStart(2, "0")}`;
+        const branchName = state.branch.replace(/\s+/g, "");
         const a = document.createElement("a");
         a.href = dataUrl;
-        a.download = `${state.branch}_${state.month}월진료안내_${size.label}.${size.fmt}`;
+        a.download = `${yymm}_${branchName}_${state.month}월진료안내_${size.label}.${size.fmt}`;
         a.click();
         await new Promise((r) => setTimeout(r, 150));
       }
+      setSavedModal(true);
     } catch (e) {
       console.error(e);
       alert("이미지 생성 중 오류가 발생했습니다.");
@@ -153,6 +159,17 @@ export default function App() {
   const nudge = (key: "title" | "calendar" | "bottom", d: number) =>
     setState((s) => ({ ...s, offsets: { ...s.offsets, [key]: clamp(+(((s.offsets?.[key] ?? 0) + d).toFixed(3)), -0.25, 0.25) } }));
   const resetLayout = () => setState((s) => ({ ...s, dateScale: 1, weekdayScale: 1, statusLabelScale: 1, bottomScale: 1, offsets: { title: 0, calendar: 0, bottom: 0 } }));
+  const copyPath = async () => {
+    try {
+      await navigator.clipboard.writeText(SAVE_PATH);
+      setPathCopied(true);
+      setTimeout(() => setPathCopied(false), 2000);
+    } catch {
+      // 클립보드 차단 환경: 경로 textarea를 선택하도록 안내
+      const el = document.getElementById("save-path-field") as HTMLInputElement | null;
+      if (el) { el.focus(); el.select(); }
+    }
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f5", color: "#18181b" }}>
@@ -417,9 +434,32 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {savedModal && (
+        <div onClick={() => setSavedModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: "100%", maxWidth: 460, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>✅ 저장이 완료되었습니다.</div>
+            <p style={{ fontSize: 13, color: "#52525b", margin: "0 0 14px", lineHeight: 1.5 }}>
+              아래 경로를 복사한 뒤, 다운로드된 이미지를 해당 폴더에 저장해 주세요.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <input id="save-path-field" readOnly value={SAVE_PATH} onFocus={(e) => e.currentTarget.select()}
+                style={{ flex: 1, minWidth: 0, border: "1px solid #d4d4d8", borderRadius: 8, padding: "10px 12px", fontSize: 12, background: "#f9fafb", color: "#18181b" }} />
+              <button onClick={copyPath} style={{ ...primaryBtn, width: "auto", padding: "0 16px", whiteSpace: "nowrap" }}>
+                {pathCopied ? "복사됨" : "경로 복사"}
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setSavedModal(false)} style={{ ...chip, padding: "8px 18px" }}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const SAVE_PATH = "C:\\Users\\user\\Dropbox\\1. 더데이랩스\\1. 이벤트&디자인\\0. 공통\\6. 진료안내";
 
 // 시간: 입력형식 대신 시(0~23) / 분(00·30) 선택형식
 function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
