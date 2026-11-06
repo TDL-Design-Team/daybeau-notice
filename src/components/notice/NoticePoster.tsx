@@ -49,8 +49,9 @@ type VariantSpec = {
   cal: { l: number; t: number; w: number; wdFont: number; dateFont: number; circle: number; rowGap: number; labelFont: number };
   bottom: Rect & { pillFont: number; dateFont: number; timeFont: number };
   // 섹션1 오버레이(자막/구분선) — 포트레이트(a4/insta/mo)만. 없으면 렌더 안 함.
-  subtitle?: { right: number; top: number; font: number; lineHeight: number; align: "right" | "left" };
+  subtitle?: { right: number; left?: number; top: number; font: number; lineHeight: number; align: "right" | "left" };
   divider?: { x0: number; x1: number; y: number; thick: number };
+  vdivider?: { x: number; y0: number; y1: number; thick: number }; // 세로 구분선(PC)
   // 선명 로고 오버레이(저해상 배경 로고 대체). 없으면 배경의 baked 로고 사용.
   logo?: { left: number; top: number; width: number };
 };
@@ -118,6 +119,9 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     month: { l: 0.088, t: 0.66, font: 0.046 },
     cal: { l: 0.4, t: 0.34, w: 0.53, wdFont: 0.03, dateFont: 0.058, circle: 0.062, rowGap: 0.02, labelFont: 0.024 },
     bottom: { l: 0.406, t: 0.75, w: 0.521, h: 0.17, pillFont: 0.024, dateFont: 0.025, timeFont: 0.022 },
+    logo: { left: 0.029, top: 0.05, width: 0.178 },
+    subtitle: { left: 0.088, right: 0.34, top: 0.77, font: 0.027, lineHeight: 1.5, align: "left" },
+    vdivider: { x: 0.3725, y0: 0.307, y1: 0.936, thick: 0.0012 },
   },
 };
 
@@ -262,14 +266,14 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
       </div>
 
       {/* N월 진료 안내 — 자막이 있는 변형은 자막 오른쪽 끝에 우측정렬, 없으면 기존 left 기준 */}
-      <div style={{ position: "absolute", ...(spec.subtitle ? { right: (1 - spec.subtitle.right) * W } : { left: spec.month.l * W }), top: spec.month.t * H + titleDY, whiteSpace: "nowrap", display: "flex", alignItems: "baseline", gap: px(0.006) }}>
+      <div style={{ position: "absolute", ...(spec.subtitle && spec.subtitle.align === "right" ? { right: (1 - spec.subtitle.right) * W } : { left: spec.month.l * W }), top: spec.month.t * H + titleDY, whiteSpace: "nowrap", display: "flex", alignItems: "baseline", gap: px(0.006) }}>
         <span style={{ fontSize: px(spec.month.font) * 1.1, fontWeight: 700 }}>{state.month}월</span>
         <span style={{ fontSize: px(spec.month.font), fontWeight: 500 }}>진료 안내</span>
       </div>
 
       {/* 상단 자막 (섹션1, titleDY로 함께 이동) */}
       {spec.subtitle && (
-        <div style={{ position: "absolute", left: 0, top: spec.subtitle.top * H + titleDY, width: spec.subtitle.right * W, textAlign: spec.subtitle.align, fontSize: px(spec.subtitle.font), lineHeight: spec.subtitle.lineHeight, color: SUBTITLE_COLOR, fontWeight: 400 }}>
+        <div style={{ position: "absolute", left: (spec.subtitle.left ?? 0) * W, top: spec.subtitle.top * H + titleDY, width: (spec.subtitle.right - (spec.subtitle.left ?? 0)) * W, textAlign: spec.subtitle.align, fontSize: px(spec.subtitle.font), lineHeight: spec.subtitle.lineHeight, color: SUBTITLE_COLOR, fontWeight: 400 }}>
           {SUBTITLE_LINES.map((ln, i) => (
             <div key={i}>{ln}</div>
           ))}
@@ -279,6 +283,11 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
       {/* 구분선 (섹션1, titleDY로 함께 이동) */}
       {spec.divider && (
         <div style={{ position: "absolute", left: spec.divider.x0 * W, top: spec.divider.y * H + titleDY, width: (spec.divider.x1 - spec.divider.x0) * W, height: Math.max(1, spec.divider.thick * H), background: DIVIDER_COLOR }} />
+      )}
+
+      {/* 세로 구분선 (PC) */}
+      {spec.vdivider && (
+        <div style={{ position: "absolute", left: spec.vdivider.x * W, top: spec.vdivider.y0 * H, width: Math.max(1, spec.vdivider.thick * W), height: (spec.vdivider.y1 - spec.vdivider.y0) * H, background: DIVIDER_COLOR }} />
       )}
 
       {/* 달력 */}
