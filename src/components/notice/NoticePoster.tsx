@@ -1,6 +1,5 @@
 import { CSSProperties, useEffect, useState } from "react";
 import bgA4 from "@/assets/notice/bg-a4.png";
-import bgInsta from "@/assets/notice/bg-insta.png";
 import bgMo from "@/assets/notice/bg-mo.png";
 import bgPc from "@/assets/notice/bg-pc.png";
 import logoDb from "@/assets/notice/logo-db.png";
@@ -76,20 +75,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     bottom: { l: 0.108, t: 0.75, w: 0.784, h: 0.16, pillFont: 0.014, dateFont: 0.015, timeFont: 0.013 },
     subtitle: { right: 0.855, top: 0.253, font: 0.0162, lineHeight: 1.55, align: "right" },
     divider: { x0: 0.108, x1: 0.892, y: 0.4025, thick: 0.0014 },
-  },
-  insta: {
-    bg: bgInsta,
-    header: false,
-    octFont: 0.066,
-    notFont: 0.062,
-    titleL: 0.147, titleRight: 0.57,
-    octT: 0.212,
-    notT: 0.298,
-    month: { l: 0.612, t: 0.216, font: 0.033 },
-    cal: { l: 0.12, t: 0.505, w: 0.76, wdFont: 0.018, dateFont: 0.038, circle: 0.094, rowGap: 0.016, labelFont: 0.014 },
-    bottom: { l: 0.121, t: 0.77, w: 0.758, h: 0.14, pillFont: 0.015, dateFont: 0.016, timeFont: 0.014 },
-    subtitle: { right: 0.858, top: 0.272, font: 0.0195, lineHeight: 1.55, align: "right" },
-    divider: { x0: 0.124, x1: 0.876, y: 0.415, thick: 0.0015 },
+    logo: { left: 0.036, top: 0.03, width: 0.3 },
   },
   mo: {
     bg: bgMo,

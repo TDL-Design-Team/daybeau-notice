@@ -17,11 +17,10 @@ export type StatusConfig = {
   endTime: string; // "19:00"
 };
 
-export type OutputSize = "a4" | "insta" | "mo" | "pc";
+export type OutputSize = "a4" | "mo" | "pc";
 
 export const OUTPUT_SIZES: { id: OutputSize; label: string; w: number; h: number; fmt: "jpg" | "png" }[] = [
   { id: "a4", label: "A4", w: 2480, h: 3508, fmt: "jpg" }, // 출력용(고용량 방지 JPG)
-  { id: "insta", label: "인스타", w: 1080, h: 1350, fmt: "png" },
   { id: "mo", label: "팝업 MO", w: 480, h: 720, fmt: "png" },
   { id: "pc", label: "팝업 PC", w: 1200, h: 720, fmt: "png" },
 ];
