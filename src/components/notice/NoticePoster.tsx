@@ -76,7 +76,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     bottom: { l: 0.108, t: 0.75, w: 0.784, h: 0.16, pillFont: 0.014, dateFont: 0.015, timeFont: 0.013 },
     subtitle: { right: 0.855, top: 0.253, font: 0.0162, lineHeight: 1.55, align: "right" },
     divider: { x0: 0.108, x1: 0.892, y: 0.4025, thick: 0.0014 },
-    logo: { left: 0.036, top: 0.026, width: 0.2 },
+    logo: { left: 0.036, top: 0.03, width: 0.16 },
   },
   insta: {
     bg: bgInsta,
