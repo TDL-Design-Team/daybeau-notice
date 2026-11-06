@@ -3,6 +3,7 @@ import bgA4 from "@/assets/notice/bg-a4.png";
 import bgInsta from "@/assets/notice/bg-insta.png";
 import bgMo from "@/assets/notice/bg-mo.png";
 import bgPc from "@/assets/notice/bg-pc.png";
+import logoDb from "@/assets/notice/logo-db.png";
 import {
   DayCell,
   KO_WD,
@@ -50,6 +51,8 @@ type VariantSpec = {
   // 섹션1 오버레이(자막/구분선) — 포트레이트(a4/insta/mo)만. 없으면 렌더 안 함.
   subtitle?: { right: number; top: number; font: number; lineHeight: number; align: "right" | "left" };
   divider?: { x0: number; x1: number; y: number; thick: number };
+  // 선명 로고 오버레이(저해상 배경 로고 대체). 없으면 배경의 baked 로고 사용.
+  logo?: { left: number; top: number; width: number };
 };
 
 // 상단 자막(고정 문구)
@@ -101,6 +104,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     bottom: { l: 0.1, t: 0.73, w: 0.8, h: 0.15, pillFont: 0.016, dateFont: 0.017, timeFont: 0.015 },
     subtitle: { right: 0.856, top: 0.286, font: 0.021, lineHeight: 1.5, align: "right" },
     divider: { x0: 0.10, x1: 0.90, y: 0.4185, thick: 0.0022 },
+    logo: { left: 0.052, top: 0.036, width: 0.27 },
   },
   pc: {
     bg: bgPc,
@@ -238,6 +242,10 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
 
   return (
     <div style={root}>
+      {/* 선명 로고 오버레이 (배경 baked 로고 대체) */}
+      {spec.logo && (
+        <img src={logoDb} alt="DayBeau Clinic" style={{ position: "absolute", left: spec.logo.left * W, top: spec.logo.top * H, width: spec.logo.width * W, height: "auto" }} />
+      )}
       {/* 지점명 */}
       {spec.header && spec.branch && (
         <div style={{ position: "absolute", right: spec.branch.right * W, top: spec.branch.t * H, fontSize: px(spec.branch.font), fontWeight: 700, letterSpacing: "-0.02em" }}>
