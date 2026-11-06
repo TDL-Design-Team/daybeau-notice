@@ -85,7 +85,7 @@ const SPECS: Record<OutputSize, VariantSpec> = {
     cal: { l: 0.12, t: 0.505, w: 0.76, wdFont: 0.018, dateFont: 0.038, circle: 0.094, rowGap: 0.016, labelFont: 0.014 },
     bottom: { l: 0.121, t: 0.77, w: 0.758, h: 0.14, pillFont: 0.015, dateFont: 0.016, timeFont: 0.014 },
     subtitle: { right: 0.858, top: 0.272, font: 0.0195, lineHeight: 1.55, align: "right" },
-    divider: { x0: 0.124, x1: 0.876, y: 0.4696, thick: 0.0015 },
+    divider: { x0: 0.124, x1: 0.876, y: 0.415, thick: 0.0015 },
   },
   mo: {
     bg: bgMo,
