@@ -132,7 +132,7 @@ function runsInRow(row: DayCell[], dayStatus: Record<string, DayStatus>): Run[] 
   const runs: Run[] = [];
   let cur: Run | null = null;
   row.forEach((cell, i) => {
-    const st = cell.inMonth ? dayStatus[cell.iso] : undefined;
+    const st = dayStatus[cell.iso]; // 인접월(다음/이전달) 날짜도 상태 지정 가능
     if (st) {
       // 캡슐 병합은 '같은 상태 + 표시상 인접 + 실제 달력상 하루 차이'일 때만
       // (요일을 띄엄띄엄 선택한 경우 숨겨진 날을 건너뛰어 붙지 않도록)
@@ -320,7 +320,7 @@ export default function NoticePoster({ variant, state }: { variant: OutputSize; 
               })}
               {/* 날짜 숫자 */}
               {row.map((cell, ci) => {
-                const st = cell.inMonth ? state.dayStatus[cell.iso] : undefined;
+                const st = state.dayStatus[cell.iso]; // 인접월 날짜도 상태 반영
                 const color = st ? STATUS_STYLE[st].text : cell.inMonth ? GRAY : "#DCDFE3";
                 return (
                   <div key={ci} style={{ position: "absolute", left: ci * cellW, top: 0, width: cellW, height: dateRowH, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Optima, serif", fontWeight: 500, fontSize: dateFont, color }}>

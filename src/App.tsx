@@ -276,7 +276,6 @@ export default function App() {
               return (
                 <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
                   {wk.map((cell, ci) => {
-                    if (!cell.inMonth) return <div key={ci} />;
                     const stt = state.dayStatus[cell.iso];
                     const weekdayOn = state.visibleWeekdays.includes(ci);
                     const disabled = !weekOn || !weekdayOn;
@@ -289,14 +288,16 @@ export default function App() {
                       <button
                         key={ci}
                         onClick={onClickCell}
-                        title={disabled ? (!weekdayOn ? "표시되지 않는 요일" : "선택되지 않은 주차") : undefined}
+                        title={disabled ? (!weekdayOn ? "표시되지 않는 요일" : "선택되지 않은 주차") : !cell.inMonth ? "다음/이전 달 날짜 (클릭해 선택 가능)" : undefined}
                         style={{
                           aspectRatio: "1", borderRadius: 8, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer",
                           ...(disabled
                             ? { background: "#fafafa", color: "#d4d4d8", border: "1px dashed #e9e9ec" }
                             : stt
                             ? CTRL_STYLE[stt]
-                            : { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }),
+                            : cell.inMonth
+                            ? { background: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }
+                            : { background: "#fff", color: "#c4c4cc", border: "1px dashed #e4e4e7" }),
                         }}
                       >
                         {cell.day}

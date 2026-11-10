@@ -49,15 +49,9 @@ export function formatDateKo(iso: string): string {
   const [, m, d] = iso.split("-").map(Number);
   return `${m}월 ${d}일 (${koWeekday(iso)})`;
 }
-// "8일 (화)" (월 생략)
-function formatDayKo(iso: string): string {
-  const [, , d] = iso.split("-").map(Number);
-  return `${d}일 (${koWeekday(iso)})`;
-}
-
-// 연속은 범위, 나머지는 나열. 월 표기는 맨 앞에만.
-// [8,11] -> "9월 8일 (화), 11일 (금)"
-// [8,9,10] -> "9월 8일 (화) ~ 10일 (목)"
+// 연속은 범위, 나머지는 나열. "N월"은 맨 앞 + 월이 바뀔 때마다 표기(월 경계 대응).
+// [8,11](9월) -> "9월 8일 (화), 11일 (금)"
+// [12/31, 1/1, 1/2] -> "12월 31일 (목) ~ 1월 2일 (토)"
 export function formatDateList(isos: string[]): string {
   if (isos.length === 0) return "";
   const sorted = [...isos].sort();
@@ -69,12 +63,16 @@ export function formatDateList(isos: string[]): string {
     else { groups.push(g); g = [sorted[i]]; }
   }
   groups.push(g);
+  let lastMonth = -1; // 직전에 표기한 월 → 바뀔 때만 "N월" 다시 붙임
+  const day = (iso: string) => {
+    const [, m, d] = iso.split("-").map(Number);
+    const showM = m !== lastMonth;
+    lastMonth = m;
+    return `${showM ? m + "월 " : ""}${d}일 (${koWeekday(iso)})`;
+  };
   const parts = groups.map((grp) =>
-    grp.length === 1 ? formatDayKo(grp[0]) : `${formatDayKo(grp[0])} ~ ${formatDayKo(grp[grp.length - 1])}`,
+    grp.length === 1 ? day(grp[0]) : `${day(grp[0])} ~ ${day(grp[grp.length - 1])}`,
   );
-  // 맨 앞에만 "N월" 붙이기
-  const [, fm] = sorted[0].split("-").map(Number);
-  parts[0] = `${fm}월 ${parts[0]}`;
   return parts.join(", ");
 }
 
