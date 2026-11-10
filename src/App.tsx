@@ -61,7 +61,7 @@ export default function App() {
   const includedIsos = useMemo(() => {
     const s = new Set<string>();
     weeks.forEach((wk, i) => {
-      if (state.includedWeeks.includes(i)) wk.forEach((c) => c.inMonth && s.add(c.iso));
+      if (state.includedWeeks.includes(i)) wk.forEach((c) => s.add(c.iso)); // 인접월 날짜도 포함
     });
     return s;
   }, [weeks, state.includedWeeks]);
