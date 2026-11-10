@@ -132,7 +132,7 @@ export default function App() {
             : await htmlToImage.toPng(node, common);
         // 파일명: (년2자리)(월2자리)_지점_N월진료안내_사이즈  예) 2610_명동더프리미엄점_10월진료안내_A4
         const yymm = `${String(state.year).slice(-2)}${String(state.month).padStart(2, "0")}`;
-        const branchName = state.branch.replace(/\s+/g, "");
+        const branchName = BRANCH_FILE_ABBR[state.branch] ?? state.branch.replace(/\s+/g, "");
         const a = document.createElement("a");
         a.href = dataUrl;
         a.download = `${yymm}_${branchName}_${state.month}월진료안내_${size.label}.${size.fmt}`;
@@ -461,6 +461,12 @@ export default function App() {
 }
 
 const SAVE_PATH = "C:\\Users\\user\\Dropbox\\1. 더데이랩스\\1. 이벤트&디자인\\0. 공통\\6. 진료안내";
+
+// 파일명용 지점 축약 (미지정 지점은 공백 제거 전체명 사용). 필요 시 추가.
+const BRANCH_FILE_ABBR: Record<string, string> = {
+  "명동 더 프리미엄점": "명동",
+  "명동 시그니처점": "명동시그",
+};
 
 // 시간: 입력형식 대신 시(0~23) / 분(00·30) 선택형식
 function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
